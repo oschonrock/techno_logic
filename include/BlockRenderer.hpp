@@ -7,16 +7,7 @@
 
 #include "SFML/Graphics.hpp"
 
-class Block {
-public:
-  const std::size_t size = 100;
-  std::string name;
-  std::string description;
-
-  void draw(sf::Window &window) {
-    // draw connections, blocks, and gates
-  }
-};
+#include "Block.hpp"
 
 class BlockRenderer {
   static constexpr float defaultViewSize = 35;

@@ -51,35 +51,44 @@ endif()
 
 include(FetchContent)
 
-FetchContent_Declare(SFML
+fetchcontent_declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG 2.6.x
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
     SYSTEM)
-FetchContent_MakeAvailable(SFML)
+fetchcontent_makeavailable(SFML)
 
-FetchContent_Declare(ImGui
+fetchcontent_declare(ImGui
     GIT_REPOSITORY https://github.com/ocornut/imgui
     GIT_TAG v1.89.9
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
     SYSTEM)
-FetchContent_MakeAvailable(ImGui)
-FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_DIR)
+fetchcontent_makeavailable(ImGui)
+fetchcontent_getproperties(ImGui SOURCE_DIR IMGUI_DIR)
 
 set(IMGUI_SFML_FIND_SFML OFF)
-FetchContent_Declare(ImGui-SFML
+fetchcontent_declare(ImGui-SFML
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml
     GIT_TAG 2.6.x
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
     SYSTEM)
-FetchContent_MakeAvailable(ImGui-SFML)
+fetchcontent_makeavailable(ImGui-SFML)
+
+set(ABSL_PROPAGATE_CXX_STD ON)
+fetchcontent_declare(abseil-cpp
+    GIT_REPOSITORY https://github.com/abseil/abseil-cpp
+    GIT_TAG 20240722.0
+    GIT_SHALLOW ON
+    EXCLUDE_FROM_ALL
+    SYSTEM)
+fetchcontent_makeavailable(abseil-cpp)
 
 add_executable(techno_logic app/main.cpp)
 target_include_directories(techno_logic PRIVATE ./include)
-target_link_libraries(techno_logic PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML ${PROJECT_STATIC_OPTIONS})
+target_link_libraries(techno_logic PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML absl::flat_hash_map ${PROJECT_STATIC_OPTIONS})
 target_compile_features(techno_logic PRIVATE cxx_std_17)
 target_compile_options(techno_logic PRIVATE ${PROJECT_COMPILE_OPTIONS})
 
