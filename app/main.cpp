@@ -7,9 +7,14 @@
 #include "SFML/System/Clock.hpp"
 #include "SFML/Window/Event.hpp"
 
-#include "gui.hpp"
+#include "BlockRenderer.hpp"
 
 int main() {
+  sf::Font font;
+  if (!font.loadFromFile("resources/arial.ttf")) {
+    throw std::runtime_error("failed to load arial.ttf");
+  }
+
   sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
   sf::RenderWindow window(desktop, "ImGui + SFML = <3", sf::Style::Fullscreen);
   window.setFramerateLimit(60);
@@ -18,7 +23,7 @@ int main() {
   Block block{};
   block.name = "Example";
   block.description = "This is an example block :)";
-  BlockRenderer rend{block, window};
+  BlockRenderer rend{block, window, font};
 
   sf::Clock deltaClock;
   while (window.isOpen()) {

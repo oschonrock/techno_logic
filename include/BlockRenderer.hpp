@@ -19,11 +19,14 @@ public:
 };
 
 class BlockRenderer {
-  static constexpr float defaultViewSize = 20;
+  static constexpr float defaultViewSize = 35;
   static constexpr float crossSize = 0.1f;
+  inline static const sf::Color crossCol{255, 255, 255, 70};
   static constexpr float hlRad = 0.1f;
   static constexpr float zoomFact = 1.05f;
-  inline static const sf::Color crossCol{255, 255, 255, 70};
+  static constexpr float nameScale = 1.5f;
+
+  const sf::Font &font;
 
   float vsScale;
 
@@ -33,6 +36,7 @@ class BlockRenderer {
 
   std::vector<sf::Vertex> gridVertecies;
   sf::CircleShape coordHl{hlRad};
+  sf::Text name;
 
   std::optional<sf::Vector2f> mousePosLast;
 
@@ -48,9 +52,9 @@ class BlockRenderer {
   }
 
 public:
-  BlockRenderer(Block &blck_, sf::RenderWindow &window_)
-      : block(blck_), window(window_),
-        gridVertecies(block.size * block.size * 4 + 8) {
+  BlockRenderer(Block &blck_, sf::RenderWindow &window_, const sf::Font &font_)
+      : font(font_), block(blck_), window(window_),
+        gridVertecies(block.size * block.size * 4 + 8), name(block.name, font) {
     // make grid
     for (std::size_t x = 0; x < block.size; ++x) {
       for (std::size_t y = 0; y < block.size; ++y) {
@@ -86,6 +90,11 @@ public:
     // set up highlighter
     coordHl.setFillColor(sf::Color{255, 0, 0, 100});
     coordHl.setOrigin({hlRad, hlRad});
+
+    // set up name
+    name.setScale(sf::Vector2f{1.0f, 1.0f} *
+                  (nameScale / static_cast<float>(name.getCharacterSize())));
+    name.setPosition({-0.8f, -1.0f - (nameScale * 1.5f)});
 
     // set up view
     setViewDefault();
@@ -144,6 +153,7 @@ private:
 
     coordHl.setPosition(sf::Vector2f(closestCoord));
     window.draw(coordHl);
+    window.draw(name);
 
     block.draw(window);
   }
