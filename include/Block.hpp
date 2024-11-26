@@ -17,7 +17,7 @@ enum class Direction{
 
 class Node{
   sf::Vector2i pos;
-  // std::array<std::variant<>, 4>
+//   std::array<std::variant<>, 4>
 };
 
 class Block {
