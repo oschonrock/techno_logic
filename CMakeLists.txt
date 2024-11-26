@@ -1,8 +1,52 @@
 cmake_minimum_required(VERSION 3.28)
 project(techno_logic LANGUAGES CXX)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+
+if(PROJECT_IS_TOP_LEVEL)
+    if(MSVC)
+        set(PROJECT_COMPILE_OPTIONS /Wall /analyze)
+        string(APPEND CMAKE_CXX_FLAGS_DEBUG " /fsanitize=address")
+        string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /fsanitize=address")
+    else()
+        set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
+            # -ftime-trace # for compile time reporting
+            -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
+        if(CMAKE_BUILD_TYPE STREQUAL "debug")
+            if(NOT MINGW) # sanitizers are not working under mingw
+                if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+                    message(WARNING "FreeBSD detected: skipping santizers which cause weird errors in OpenSSL")
+                else()
+                    string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
+                    # string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
+                endif()
+            endif()
+        endif()
+    endif()
+endif()
+
+if(WIN32)
+    # combine everthing into one binary on windows
+    set(BUILD_SHARED_LIBS OFF)
+    # -static removes dependencies on libgcc.dll, libstdc++.dll and winthread.dll on windows
+    set(PROJECT_STATIC_OPTIONS "-static")
+else()
+    # on linux there is not much point being statically linked
+    set(PROJECT_STATIC_OPTIONS "")
+endif()
+
+option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." TRUE)
+if(${FORCE_COLORED_OUTPUT})
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        add_compile_options(-fdiagnostics-color=always)
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        add_compile_options(-fcolor-diagnostics)
+    endif()
+endif()
 
 include(FetchContent)
 
