@@ -77,8 +77,9 @@ FetchContent_Declare(ImGui-SFML
 FetchContent_MakeAvailable(ImGui-SFML)
 
 add_executable(techno_logic app/main.cpp)
-target_link_libraries(techno_logic PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML)
+target_link_libraries(techno_logic PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML ${PROJECT_STATIC_OPTIONS})
 target_compile_features(techno_logic PRIVATE cxx_std_17)
+target_compile_options(techno_logic PRIVATE ${PROJECT_COMPILE_OPTIONS})
 
 if(WIN32)
     add_custom_command(
