@@ -87,7 +87,8 @@ class BlockRenderer {
     }
 
     void event(const sf::Event& event, const sf::Vector2f& mousePos) {
-        if (event.type == sf::Event::MouseWheelMoved && !ImGui::GetIO().WantCaptureMouse) {
+        if (block.event(event, window, mousePos) || ImGui::GetIO().WantCaptureMouse) return;
+        if (event.type == sf::Event::MouseWheelMoved) {
             float        zoom = static_cast<float>(std::pow(zoomFact, -event.mouseWheel.delta));
             sf::Vector2f diff = mousePos - view.getCenter();
             view.zoom(zoom);
