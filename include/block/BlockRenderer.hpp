@@ -41,12 +41,6 @@ class BlockRenderer {
         window.setView(view);
     }
 
-    sf::Vector2i snapToGrid(const sf::Vector2f& pos) const {
-        return {
-            std::clamp(static_cast<int>(std::round(pos.x)), 0, static_cast<int>(block.size - 1)),
-            std::clamp(static_cast<int>(std::round(pos.y)), 0, static_cast<int>(block.size - 1))};
-    }
-
   public:
     BlockRenderer(Block& blck_, sf::RenderWindow& window_, const sf::Font& font_)
         : font(font_), block(blck_), window(window_),
@@ -93,8 +87,8 @@ class BlockRenderer {
     }
 
     void event(const sf::Event& event, const sf::Vector2f& mousePos) {
-        sf::Vector2i mouseCoord = snapToGrid(mousePos);
-        if (ImGui::GetIO().WantCaptureMouse || block.event(event, window, mouseCoord)) return;
+        // sf::Vector2i mouseCoord = block.snapToGrid(mousePos);
+        if (ImGui::GetIO().WantCaptureMouse || block.event(event, window, mousePos)) return;
         if (event.type == sf::Event::MouseWheelMoved) {
             float        zoom = static_cast<float>(std::pow(zoomFact, -event.mouseWheel.delta));
             sf::Vector2f diff = mousePos - view.getCenter();
@@ -123,18 +117,19 @@ class BlockRenderer {
             }
         }
         draw(mousePos);
+        block.frame(window, mousePos);
     }
 
   private:
     void draw(const sf::Vector2f& mousePos) {
-        sf::Vector2i mouseCoord = snapToGrid(mousePos);
+        sf::Vector2i mouseCoord = block.snapToGrid(mousePos);
 
-        ImGui::BeginTooltip();
+        ImGui::Begin("Debug", NULL, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y); // DEBUG
         ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x,
                     mouseCoord.y); // DEBUG
         ImGui::Text("View size: (%F, %F)", view.getSize().x, view.getSize().y);
-        ImGui::EndTooltip();
+        ImGui::End();
 
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
 

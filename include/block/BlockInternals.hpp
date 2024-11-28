@@ -29,21 +29,38 @@ inline Direction reverseDirection(Direction dir) {
 }
 
 // note 0,0 = false
-inline bool isVecHoriVert(sf::Vector2i vec) { return ((vec.x != 0) != (vec.y != 0)); }
+inline bool isVecHoriVert(const sf::Vector2i& vec) { return ((vec.x != 0) != (vec.y != 0)); }
 
-inline int dot(sf::Vector2i a, sf::Vector2i b) { return a.x * b.x + a.y * b.y; }
+inline int dot(const sf::Vector2i& a, const sf::Vector2i& b) { return a.x * b.x + a.y * b.y; }
 
-inline bool isVecInDir(sf::Vector2i vec, Direction dir) {
+inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {
     assert(isVecHoriVert(vec));
     return dot(vec, dirToVec(dir)) > 0; // if dot prouct > 0 then must be in same dir
 }
 
-inline int magPolar(sf::Vector2i vec) { return abs(vec.x) + abs(vec.y); };
+inline Direction vecToDir(const sf::Vector2i& vec){
+    assert(isVecHoriVert(vec));
+    if (vec.y != 0) {
+        return vec.y < 0 ? Direction::up : Direction::down;
+    }
+    return vec.x < 0 ? Direction::left : Direction::right;
+}
 
-inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1, const sf::Vector2i& end2) {
+inline int magPolar(const sf::Vector2i& vec) { return abs(vec.x) + abs(vec.y); };
+
+inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1,
+                         const sf::Vector2i& end2) {
     assert(isVecHoriVert(end1 - end2));
     // imagine end1 is origin
     return magPolar(vec - end1) + magPolar(end2 - vec) == magPolar(end2 - end1);
+}
+
+inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
+    if (abs(vec.x) > abs(vec.y)) {
+        return {vec.x, 0};
+    } else {
+        return {0, vec.y};
+    }
 }
 
 class PortInst {
@@ -55,8 +72,16 @@ class PortInst {
 
 class Node {
   public:
-    sf::Vector2i          pos;
-    std::vector<PortInst> ports;
+    sf::Vector2i            pos;
+    std::array<PortInst, 4> ports;
+
+    // Always form a connection to node after construction
+    Node(const sf::Vector2i& pos_) : pos(pos_) {
+        ports[0] = {Direction::up, pos, false};
+        ports[1] = {Direction::down, pos, false};
+        ports[2] = {Direction::left, pos, false};
+        ports[3] = {Direction::right, pos, false};
+    }
 };
 
 class BlockInst {
@@ -71,14 +96,14 @@ class Gate {
     std::vector<PortInst> ports;
 };
 
-using VariantRef = std::variant<Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
+using PortObjRef = std::variant<Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
 enum struct VariantType : std::size_t { Node = 0, Gate = 1, BlockInst = 2 };
 
 class PortRef {
   public:
-    VariantRef  ref;
+    PortObjRef  ref;
     std::size_t portNum;
-    PortRef(VariantRef ref_, std::size_t portNum_) : ref(ref_), portNum(portNum_) {}
+    PortRef(PortObjRef ref_, std::size_t portNum_) : ref(ref_), portNum(portNum_) {}
 
     bool operator==(const PortRef& other) const {
         return (ref == other.ref) || (portNum == other.portNum);
@@ -93,13 +118,13 @@ class PortRef {
     }
 };
 
-inline VariantType typeOf(const VariantRef& ref) { return VariantType(ref.index()); }
+inline VariantType typeOf(const PortObjRef& ref) { return VariantType(ref.index()); }
 inline VariantType typeOf(const PortRef& ref) { return typeOf(ref.ref); }
 
 template <>
 struct std::hash<PortRef> {
     std::size_t operator()(const PortRef& portRef) const {
-        return std::hash<VariantRef>{}(portRef.ref) + std::hash<std::size_t>{}(portRef.portNum);
+        return std::hash<PortObjRef>{}(portRef.ref) + std::hash<std::size_t>{}(portRef.portNum);
     }
 };
 
@@ -125,11 +150,12 @@ struct std::hash<Connection> { // hash function commutative
 
 class ClosedNet {
   private:
-    std::unordered_map<PortRef, PortRef> map2;
+    std::unordered_map<PortRef, PortRef> map2{};
 
   public:
-    std::unordered_map<PortRef, PortRef> map; // TODO should be private and provide connection iterators
-    bool                       hasInput = false;
+    std::unordered_map<PortRef, PortRef>
+         map{}; // TODO should be private and provide connection iterators
+    bool hasInput = false;
 
     void insert(const Connection& con) {
         map.insert({con.portRef1, con.portRef2});
@@ -167,23 +193,28 @@ class ClosedNet {
 };
 
 class ConnectionNetwork {
-    std::vector<ClosedNet> nets{};
+  public:
+    StableVector<ClosedNet> nets{};
 
     void insert(const Connection& con) {
+        if (nets.size() == 0){
+            auto net = nets.insert(ClosedNet{});
+            nets[net].insert(con);
+        }
         if (typeOf(con.portRef1) == VariantType::Node &&
             typeOf(con.portRef2) == VariantType::Node) { // conecting two nodes
-            ClosedNet& net1 = nets[0];                   // default values becuase references
-            ClosedNet& net2 = nets[0];
+            Ref<ClosedNet> net1 = nets.front().ind;      // default values becuase references
+            Ref<ClosedNet> net2 = nets.front().ind;      // default values becuase references
             for (const auto& net: nets) {
-                if (net.contains(con.portRef1)) {
-                    net1 = net;
+                if (net.obj.contains(con.portRef1)) {
+                    net1 = net.ind;
                 }
-                if (net.contains(con.portRef2)) {
-                    net2 = net;
+                if (net.obj.contains(con.portRef2)) {
+                    net2 = net.ind;
                 }
             }
             if (&net1 == &net2) { // connecting within closed net
-                net1.insert(con);
+                nets[net1].insert(con);
             } else { // connecting two closed nets
                 // TODO
             }
@@ -193,6 +224,23 @@ class ConnectionNetwork {
         } else { // connecting two objects
                  // TODO
         }
+    }
+
+    void splitCon(const Connection& con, const Ref<Node> node);
+
+    std::optional<Ref<ClosedNet>> getNet(const PortRef& port) const {
+        for (const auto& net: nets) {
+            if (net.obj.contains(port)) return net.ind;
+        }
+        return {};
+    }
+
+    Ref<ClosedNet> getNet(const Ref<Node>& node) const {
+        for (std::size_t port = 0; port < 4; ++port) {
+            auto netRef = getNet(PortRef{node, port});
+            if (netRef) return netRef.value();
+        }
+        throw std::logic_error("node has no connections. Should never happen");
     }
 
     bool isConnected(const PortRef& port1, const PortRef& port2); // dijkstra's
