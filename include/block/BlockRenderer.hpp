@@ -41,6 +41,12 @@ class BlockRenderer {
         window.setView(view);
     }
 
+    sf::Vector2i snapToGrid(const sf::Vector2f& pos) const {
+        return {
+            std::clamp(static_cast<int>(std::round(pos.x)), 0, static_cast<int>(block.size - 1)),
+            std::clamp(static_cast<int>(std::round(pos.y)), 0, static_cast<int>(block.size - 1))};
+    }
+
   public:
     BlockRenderer(Block& blck_, sf::RenderWindow& window_, const sf::Font& font_)
         : font(font_), block(blck_), window(window_),
@@ -87,7 +93,8 @@ class BlockRenderer {
     }
 
     void event(const sf::Event& event, const sf::Vector2f& mousePos) {
-        if (block.event(event, window, mousePos) || ImGui::GetIO().WantCaptureMouse) return;
+        sf::Vector2i mouseCoord = snapToGrid(mousePos);
+        if (ImGui::GetIO().WantCaptureMouse || block.event(event, window, mouseCoord)) return;
         if (event.type == sf::Event::MouseWheelMoved) {
             float        zoom = static_cast<float>(std::pow(zoomFact, -event.mouseWheel.delta));
             sf::Vector2f diff = mousePos - view.getCenter();
@@ -120,21 +127,18 @@ class BlockRenderer {
 
   private:
     void draw(const sf::Vector2f& mousePos) {
-        sf::Vector2i closestCoord = {std::clamp(static_cast<int>(std::round(mousePos.x)), 0,
-                                                static_cast<int>(block.size - 1)),
-                                     std::clamp(static_cast<int>(std::round(mousePos.y)), 0,
-                                                static_cast<int>(block.size - 1))};
+        sf::Vector2i mouseCoord = snapToGrid(mousePos);
 
         ImGui::BeginTooltip();
         ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y); // DEBUG
-        ImGui::Text("Closest coord: (%d, %d)", closestCoord.x,
-                    closestCoord.y); // DEBUG
+        ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x,
+                    mouseCoord.y); // DEBUG
         ImGui::Text("View size: (%F, %F)", view.getSize().x, view.getSize().y);
         ImGui::EndTooltip();
 
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
 
-        coordHl.setPosition(sf::Vector2f(closestCoord));
+        coordHl.setPosition(sf::Vector2f(mouseCoord));
         window.draw(coordHl);
         window.draw(name);
 

@@ -7,7 +7,7 @@
 #include "SFML/System/Clock.hpp"
 #include "SFML/Window/Event.hpp"
 
-#include "BlockRenderer.hpp"
+#include "block/BlockRenderer.hpp"
 
 int main() {
     sf::Font font;
