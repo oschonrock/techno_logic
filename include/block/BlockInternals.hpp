@@ -38,7 +38,7 @@ inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {
     return dot(vec, dirToVec(dir)) > 0; // if dot prouct > 0 then must be in same dir
 }
 
-inline Direction vecToDir(const sf::Vector2i& vec){
+inline Direction vecToDir(const sf::Vector2i& vec) {
     assert(isVecHoriVert(vec));
     if (vec.y != 0) {
         return vec.y < 0 ? Direction::up : Direction::down;
@@ -46,7 +46,7 @@ inline Direction vecToDir(const sf::Vector2i& vec){
     return vec.x < 0 ? Direction::left : Direction::right;
 }
 
-inline int magPolar(const sf::Vector2i& vec) { return abs(vec.x) + abs(vec.y); };
+inline int magPolar(const sf::Vector2i& vec) { return abs(vec.x) + abs(vec.y); }
 
 inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1,
                          const sf::Vector2i& end2) {
@@ -166,17 +166,25 @@ class ClosedNet {
         map.erase(con.portRef1);
         map.erase(con.portRef2);
         map2.erase(con.portRef1);
-        map2.erase(con.portRef1);
+        map2.erase(con.portRef2);
     }
 
-    bool contains(const PortRef& port) const { return map.contains(port) || map2.contains(port); }
+    [[nodiscard]] bool contains(const PortRef& port) const {
+        return map.contains(port) || map2.contains(port);
+    }
 
-    bool contains(const Ref<Node> node) const {
+    [[nodiscard]] bool contains(const Connection& con) const {
+        return (map.contains(con.portRef1) && map.find(con.portRef1)->second == con.portRef2) ||
+               (map.contains(con.portRef2) && map.find(con.portRef2)->second == con.portRef1);
+    }
+
+    // prefer call contains() on port
+    [[nodiscard]] bool contains(const Ref<Node> node) const {
         return contains(PortRef{node, 0}) || contains(PortRef{node, 1}) ||
                contains(PortRef{node, 2}) || contains(PortRef{node, 3});
     }
 
-    std::optional<Connection> getCon(const PortRef& port) const {
+    [[nodiscard]] std::optional<Connection> getCon(const PortRef& port) const {
         if (map.contains(port)) {
             return Connection{port, map.find(port)->second};
         } else if (map2.contains(port)) {
@@ -196,54 +204,60 @@ class ConnectionNetwork {
   public:
     StableVector<ClosedNet> nets{};
 
-    void insert(const Connection& con) {
-        if (nets.size() == 0){
-            auto net = nets.insert(ClosedNet{});
-            nets[net].insert(con);
+    void insert(const Connection& con, bool isNewClosNet) {
+        if (isNewClosNet) {
+            std::cout << "made new closed network" << std::endl;
+            auto netRef = nets.insert(ClosedNet{}); // make new closedNet
+            nets[netRef].insert(con);
+            return;
         }
-        if (typeOf(con.portRef1) == VariantType::Node &&
-            typeOf(con.portRef2) == VariantType::Node) { // conecting two nodes
-            Ref<ClosedNet> net1 = nets.front().ind;      // default values becuase references
-            Ref<ClosedNet> net2 = nets.front().ind;      // default values becuase references
-            for (const auto& net: nets) {
-                if (net.obj.contains(con.portRef1)) {
-                    net1 = net.ind;
-                }
-                if (net.obj.contains(con.portRef2)) {
-                    net2 = net.ind;
+
+        if (typeOf(con.portRef1) == VariantType::Node && // conecting two nodes
+            typeOf(con.portRef2) == VariantType::Node) {
+            std::optional<Ref<ClosedNet>> net1 =
+                getClosNetRef(std::get<Ref<Node>>(con.portRef1.ref));
+            std::optional<Ref<ClosedNet>> net2 =
+                getClosNetRef(std::get<Ref<Node>>(con.portRef2.ref));
+            if (net1 && net2) {
+                if (net1.value() == net2.value()) {
+                    std::cout << "made loop" << std::endl;
+                } else {
+                    throw std::logic_error("attempted to connect two nets");
                 }
             }
-            if (&net1 == &net2) { // connecting within closed net
-                nets[net1].insert(con);
-            } else { // connecting two closed nets
-                // TODO
-            }
-        } else if (typeOf(con.portRef1) == VariantType::Node || // connecting node and obj
-                   typeOf(con.portRef2) == VariantType::Node) {
-            // TODO
-        } else { // connecting two objects
-                 // TODO
+            // extending net with new free node
+            std::cout << "extending net with new free node" << std::endl;
+            nets[net1 ? net1.value() : net2.value()].insert(con);
+            return;
         }
+
+        // connecting exisitng node and obj
+        const PortRef& nodePort =
+            typeOf(con.portRef1) == VariantType::Node ? con.portRef1 : con.portRef2;
+        nets[getClosNetRef(nodePort).value()].insert(con);
     }
 
     void splitCon(const Connection& con, const Ref<Node> node);
 
-    std::optional<Ref<ClosedNet>> getNet(const PortRef& port) const {
+    // try to call this with ports over nodes if you have the port
+    template <typename T>
+    [[nodiscard]] std::optional<Ref<ClosedNet>> getClosNetRef(const T& obj) const {
         for (const auto& net: nets) {
-            if (net.obj.contains(port)) return net.ind;
+            if (net.obj.contains(obj)) return net.ind;
         }
         return {};
     }
 
-    Ref<ClosedNet> getNet(const Ref<Node>& node) const {
+    [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const {
+        const auto& net   = nets[getClosNetRef(node).value()]; // connection assumed because node
+        std::size_t count = 0;
         for (std::size_t port = 0; port < 4; ++port) {
-            auto netRef = getNet(PortRef{node, port});
-            if (netRef) return netRef.value();
+            count += net.contains(PortRef{node, port}) ? 1 : 0;
         }
-        throw std::logic_error("node has no connections. Should never happen");
+        return count;
     }
 
-    bool isConnected(const PortRef& port1, const PortRef& port2); // dijkstra's
+    bool areConnected(const PortRef& port1, const PortRef& port2); // dijkstra's
     void remove(); // super complex becuase of potential splitting... requires isConnected
     // esentially check for
 };

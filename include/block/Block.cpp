@@ -48,9 +48,9 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
                                             Direction dirIntoPort) {
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
+        std::cout << "new node made" << std::endl;
         Ref<Node> node = nodes.insert(Node{pos});
         return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort))};
-        break;
     }
     case ObjAtCoordType::Con: { // make new node and split connection
         break;
@@ -59,7 +59,8 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
         break;
     }
     case ObjAtCoordType::Node: { // return portRef
-        break;
+        Ref<Node> node = std::get<Ref<Node>>(var);
+        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort))};
     }
     default:
         throw std::logic_error("Cannot make connection to location which isn't");
@@ -80,7 +81,7 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
         switch (state) {
         case BlockState::Idle: {                              // new connection started
             if (typeOf(clickedObj) <= ObjAtCoordType::Node) { // connectable
-                state = BlockState::NewConStart;
+                state = BlockState::Connecting;
                 // reset end... it will contain old data
                 conEndPos    = conStartPos;
                 conEndObjVar = conStartObjVar;
@@ -89,7 +90,7 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
             }
             break;
         }
-        case BlockState::NewConStart: {                    // connection finished
+        case BlockState::Connecting: {                     // connection finished
             if (typeOf(clickedObj) > ObjAtCoordType::Node) // not connectable
                 break;
 
@@ -97,11 +98,16 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
                 makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
             PortRef endPort =
                 makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
-            std::cout << "There are " << nodes.size() << "node(s)" << std::endl;
+
+            // MAKING NEW NETWORK if no connections are nodes or connections...
+            bool isNewClosNet = (typeOf(conStartObjVar) != ObjAtCoordType::Node &&
+                                 typeOf(conStartObjVar) != ObjAtCoordType::Con &&
+                                 typeOf(conEndObjVar) != ObjAtCoordType::Node &&
+                                 typeOf(conEndObjVar) != ObjAtCoordType::Con);
+
             state = BlockState::Idle;
             conEndCloNet.reset();
-            conNet.insert({startPort, endPort});
-            std::cout << "made it here" << std::endl;
+            conNet.insert({startPort, endPort}, isNewClosNet);
             break;
         }
         }
@@ -112,6 +118,7 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
 void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
     ImGui::Begin("Debug");
+    ImGui::Text("Number of nodes: %zu", nodes.size());
     ImGui::Text("Number of closed networks: %zu", conNet.nets.size());
     switch (state) {
     case BlockState::Idle: {
@@ -122,11 +129,11 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         // if network component highlight network
         switch (typeOf(conStartObjVar)) {
         case ObjAtCoordType::Node: {
-            conStartCloNet = conNet.getNet(std::get<Ref<Node>>(conStartObjVar));
+            conStartCloNet = conNet.getClosNetRef(std::get<Ref<Node>>(conStartObjVar));
             break;
         }
         case ObjAtCoordType::Con: {
-            conStartCloNet = conNet.getNet(std::get<Connection>(conStartObjVar).portRef1);
+            conStartCloNet = conNet.getClosNetRef(std::get<Connection>(conStartObjVar).portRef1);
             break;
         }
         default:
@@ -134,7 +141,7 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         }
         break;
     }
-    case BlockState::NewConStart: {
+    case BlockState::Connecting: {
         conEndPos    = conStartPos + snapToAxis(mouseGridPos - conStartPos);
         conEndObjVar = whatIsAtCoord(conEndPos);
         ImGui::Text("Connection started from %s at (%d,%d)",
@@ -143,13 +150,13 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         ImGui::Text("Hovering %s at (%d,%d)", ObjAtCoordStrings[conEndObjVar.index()].c_str(),
                     conEndPos.x, conEndPos.y);
         // if network component highlight network
-        switch (typeOf(conStartObjVar)) {
+        switch (typeOf(conEndObjVar)) {
         case ObjAtCoordType::Node: {
-            conEndCloNet = conNet.getNet(std::get<Ref<Node>>(conEndObjVar));
+            conEndCloNet = conNet.getClosNetRef(std::get<Ref<Node>>(conEndObjVar));
             break;
         }
         case ObjAtCoordType::Con: {
-            conEndCloNet = conNet.getNet(std::get<Connection>(conEndObjVar).portRef1);
+            conEndCloNet = conNet.getClosNetRef(std::get<Connection>(conEndObjVar).portRef1);
             break;
         }
         default:
@@ -158,12 +165,12 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         break;
     }
     }
-    ImGui::End();
     draw(window);
+    ImGui::End();
 }
 
 void Block::draw(sf::RenderWindow& window) {
-    if (state == BlockState::NewConStart) {
+    if (state == BlockState::Connecting) { // draw new connection
         std::array<sf::Vertex, 2> conLine{sf::Vertex{sf::Vector2f{conStartPos}, newConColour},
                                           sf::Vertex{sf::Vector2f{conEndPos}, newConColour}};
         window.draw(conLine.data(), 2, sf::PrimitiveType::Lines);
@@ -178,6 +185,30 @@ void Block::draw(sf::RenderWindow& window) {
         }
         default: // errors
             break;
+        }
+    }
+    // draw connections
+    std::vector<sf::Vertex> lineVerts;
+    for (const auto& net: conNet.nets) {
+        sf::Color col = conColour;
+        if ((conStartCloNet && conStartCloNet.value() == net.ind) || // if needs highlighting
+            (conEndCloNet && conEndCloNet.value() == net.ind)) {
+            col = highlightConColour;
+        }
+        for (const auto& portPair: net.obj.map) {
+            lineVerts.emplace_back(sf::Vector2f(getPort(portPair.first).portPos), col);
+            lineVerts.emplace_back(sf::Vector2f(getPort(portPair.second).portPos), col);
+        }
+    }
+    window.draw(lineVerts.data(), lineVerts.size(), sf::PrimitiveType::Lines);
+    // draw nodes
+    for (const auto& node: nodes) {
+        ImGui::Text("Node connection count: %zu", conNet.getNodeConCount(node.ind));
+        if (conNet.getNodeConCount(node.ind) != 2) {
+            sf::CircleShape circ{nodeRad};
+            circ.setFillColor(nodeColour);
+            circ.setPosition(sf::Vector2f{node.obj.pos} - sf::Vector2f{nodeRad, nodeRad});
+            window.draw(circ);
         }
     }
 }

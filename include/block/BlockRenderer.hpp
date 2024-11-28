@@ -120,6 +120,7 @@ class BlockRenderer {
         block.frame(window, mousePos);
     }
 
+
   private:
     void draw(const sf::Vector2f& mousePos) {
         sf::Vector2i mouseCoord = block.snapToGrid(mousePos);

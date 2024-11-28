@@ -21,11 +21,13 @@ inline static constexpr std::array<std::string, 6> ObjAtCoordStrings{
 
 class Block {
   private:
-    static constexpr float        nodeRad      = 0.1f;
-    inline static const sf::Color conColour    = sf::Color::White;
-    inline static const sf::Color newConColour = sf::Color::Blue;
+    static constexpr float        nodeRad            = 0.1f;
+    inline static const sf::Color nodeColour         = sf::Color::White;
+    inline static const sf::Color conColour          = sf::Color::White;
+    inline static const sf::Color newConColour       = sf::Color::Blue;
+    inline static const sf::Color highlightConColour = sf::Color::Green;
 
-    enum struct BlockState { Idle, NewConStart };
+    enum struct BlockState { Idle, Connecting };
     BlockState state = BlockState::Idle;
 
     ObjAtCoordVar   whatIsAtCoord(const sf::Vector2i& coord);
