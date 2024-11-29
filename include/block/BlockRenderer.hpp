@@ -146,7 +146,5 @@ class BlockRenderer {
         coordHl.setPosition(sf::Vector2f(mouseCoord));
         window.draw(coordHl);
         window.draw(name);
-
-        block.draw(window);
     }
 };

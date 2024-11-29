@@ -60,5 +60,7 @@ class Block {
     // returns wether it wants to capture the event (not allow other things to interpret it)
     bool event(const sf::Event& event, sf::RenderWindow& window, const sf::Vector2f& mousePos);
     void frame(sf::RenderWindow& window, const sf::Vector2f& mousePos);
+
+  private:
     void draw(sf::RenderWindow& window);
 };

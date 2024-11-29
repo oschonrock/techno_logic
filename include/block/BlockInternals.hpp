@@ -18,12 +18,15 @@ inline float mag(const sf::Vector2i& vec) {
     return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
 }
 
+class Block;
+
+enum struct PortType { input, output, node };
 
 class PortInst {
   public:
     Direction    portDir;
     sf::Vector2i portPos;
-    bool         isOutput;
+    bool         negated = false;
 };
 
 class Node {
@@ -33,10 +36,10 @@ class Node {
 
     // Always form a connection to node after construction
     Node(const sf::Vector2i& pos_) : pos(pos_) {
-        ports[0] = {Direction::up, pos, false};
-        ports[1] = {Direction::down, pos, false};
-        ports[2] = {Direction::left, pos, false};
-        ports[3] = {Direction::right, pos, false};
+        ports[0] = {Direction::up, pos};
+        ports[1] = {Direction::down, pos};
+        ports[2] = {Direction::left, pos};
+        ports[3] = {Direction::right, pos};
     }
 };
 
@@ -44,6 +47,7 @@ class BlockInst {
   public:
     sf::Vector2i          pos;
     std::vector<PortInst> ports;
+    Ref<Block>            block;
 };
 
 class Gate {
@@ -59,18 +63,11 @@ class PortRef {
   public:
     PortObjRef  ref;
     std::size_t portNum;
+    PortType    portType;
     PortRef(PortObjRef ref_, std::size_t portNum_) : ref(ref_), portNum(portNum_) {}
 
     bool operator==(const PortRef& other) const {
         return (ref == other.ref) && (portNum == other.portNum);
-    }
-
-    bool isConnected(const PortRef& other) const {
-        if (VariantType(other.ref.index()) ==
-            VariantType::Node) { // ports are only connected within a node (for now)
-            return ref == other.ref;
-        }
-        return false;
     }
 };
 
@@ -106,32 +103,65 @@ struct std::hash<Connection> { // hash function commutative
 
 class ClosedNet {
   private:
-    absl::flat_hash_map<PortRef, PortRef> map2{};
+    absl::flat_hash_map<PortRef, PortRef> conMap{};
+    absl::flat_hash_map<PortRef, PortRef> conMap2{};
+    std::optional<PortRef>                input{};   // only 1 allowed atm
+    std::vector<PortRef>                  outputs{}; // TODO maybe unnecessary data duplication
+    std::size_t                           size{};
+
+    void maintainIOVecs(bool isInsert, const PortRef& portRef) {
+        if (portRef.portType == PortType::node) return;
+        if (portRef.portType == PortType::input) {
+            if (isInsert) {
+                if (input) throw std::logic_error("Tried to add two inputs to closed graph");
+            } else {
+                input.reset();
+            }
+        } else {
+            if (isInsert) {
+                outputs.push_back(portRef);
+            } else {
+                auto it = std::find(outputs.begin(), outputs.end(), portRef);
+                if (it != outputs.end())
+                    throw std::logic_error("Tried to remove output that isn't in closed graph");
+                std::erase(outputs, *it);
+            }
+        }
+    }
 
   public:
-    absl::flat_hash_map<PortRef, PortRef>
-         map{}; // TODO maybe should be private and provide connection iterators
-    bool hasInput = false;
+    [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
+    [[nodiscard]] bool                          hasInput() const { return input.has_value(); }
+    [[nodiscard]] const std::optional<PortRef>& getInput() const { return input; }
+    [[nodiscard]] const std::vector<PortRef>&   getOutputs() const { return outputs; }
+    [[nodiscard]] std::size_t                   getSize() const { return size; }
 
     void insert(const Connection& con) {
-        map.insert({con.portRef1, con.portRef2});
-        map2.insert({con.portRef2, con.portRef1});
+        conMap.insert({con.portRef1, con.portRef2});
+        conMap2.insert({con.portRef2, con.portRef1});
+        ++size;
+        maintainIOVecs(true, con.portRef1);
+        maintainIOVecs(true, con.portRef2);
     }
 
     void erase(const Connection& con) {
-        map.erase(con.portRef1);
-        map.erase(con.portRef2);
-        map2.erase(con.portRef1);
-        map2.erase(con.portRef2);
+        conMap.erase(con.portRef1);
+        conMap.erase(con.portRef2);
+        conMap2.erase(con.portRef1);
+        conMap2.erase(con.portRef2);
+        --size;
+        maintainIOVecs(false, con.portRef1);
+        maintainIOVecs(false, con.portRef2);
     }
 
     [[nodiscard]] bool contains(const PortRef& port) const {
-        return map.contains(port) || map2.contains(port);
+        return conMap.contains(port) || conMap2.contains(port);
     }
 
     [[nodiscard]] bool contains(const Connection& con) const {
-        return (map.contains(con.portRef1) && map.find(con.portRef1)->second == con.portRef2) ||
-               (map.contains(con.portRef2) && map.find(con.portRef2)->second == con.portRef1);
+        return (conMap.contains(con.portRef1) &&
+                conMap.find(con.portRef1)->second == con.portRef2) ||
+               (conMap.contains(con.portRef2) && conMap.find(con.portRef2)->second == con.portRef1);
     }
 
     // prefer call contains() on port
@@ -140,17 +170,18 @@ class ClosedNet {
                contains(PortRef{node, 2}) || contains(PortRef{node, 3});
     }
 
-    [[nodiscard]] std::optional<Connection> getCon(const PortRef& port) const {
-        if (map.contains(port)) {
-            return Connection{port, map.find(port)->second};
-        } else if (map2.contains(port)) {
-            return Connection{port, map2.find(port)->second};
+    [[nodiscard]] Connection getCon(const PortRef& port) const {
+        if (conMap.contains(port)) {
+            return Connection{port, conMap.find(port)->second};
+        } else if (conMap2.contains(port)) {
+            return Connection{port, conMap2.find(port)->second};
         }
-        return {};
+        throw std::logic_error("Port not connected to closed net. Did you call contains?");
     }
 
-    void operator+=(const ClosedNet& other) { // add all connections from another network
-        for (const auto& con: other.map) {
+    // NOTE: Destroy network "other". Adds all connections from another network
+    void operator+=(const  ClosedNet& other) { 
+        for (const auto& con: other.conMap) {
             insert({con.first, con.second});
         }
     }
@@ -162,7 +193,7 @@ class ConnectionNetwork {
 
     void insert(const Connection& con, bool isNewClosNet) {
         if (isNewClosNet) {
-            std::cout << "made new closed network" << std::endl;
+            std::cout << "made new closed network \n";
             auto netRef = nets.insert(ClosedNet{}); // make new closedNet
             nets[netRef].insert(con);
             return;
@@ -175,14 +206,25 @@ class ConnectionNetwork {
             std::optional<Ref<ClosedNet>> net2 =
                 getClosNetRef(std::get<Ref<Node>>(con.portRef2.ref));
             if (net1 && net2) {
-                if (net1.value() == net2.value()) {
-                    std::cout << "made loop" << std::endl;
+                auto net1Ref = net1.value();
+                auto net2Ref = net2.value();
+                if (net1Ref == net2Ref) {
+                    nets[net1Ref].insert(con);
+                    std::cout << "made loop within closed networks \n";
+                    return;
                 } else {
-                    throw std::logic_error("attempted to connect two nets");
+                    std::cout << "connected two closed networks \n"; 
+                    if (nets[net1Ref].getSize() < nets[net2Ref].getSize())
+                        std::swap(net1Ref, net2Ref);
+                    // net1 is now the bigger of the two
+                    nets[net1Ref] += nets[net2Ref];
+                    nets.erase(net2Ref);
+                    nets[net1Ref].insert(con);
+                    return;
                 }
             }
             // extending net with new free node
-            std::cout << "extending net with new free node" << std::endl;
+            std::cout << "extending net with new free node \n";
             nets[net1 ? net1.value() : net2.value()].insert(con);
             return;
         }
@@ -202,6 +244,11 @@ class ConnectionNetwork {
             if (net.obj.contains(obj)) return net.ind;
         }
         return {};
+    }
+
+    template <typename T>
+    [[nodiscard]] bool contains(const T& obj) const {
+        return getClosNetRef(obj);
     }
 
     [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const {

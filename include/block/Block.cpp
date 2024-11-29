@@ -94,6 +94,7 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
         switch (state) {
         case BlockState::Idle: {                              // new connection started
             if (typeOf(clickedObj) <= ObjAtCoordType::Node) { // connectable
+                //
                 state = BlockState::Connecting;
                 // reset end... it will contain old data
                 conEndPos    = conStartPos;
@@ -126,7 +127,7 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
 
 void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
-    ImGui::Begin("Debug");
+    ImGui::Begin("Debug", NULL, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("Proposed connection %slegal", conEndLegal ? "" : "il");
     ImGui::Text("Number of nodes: %zu", nodes.size());
     ImGui::Text("Number of closed networks: %zu", conNet.nets.size());
@@ -228,7 +229,7 @@ void Block::draw(sf::RenderWindow& window) {
             (conEndCloNet && conEndCloNet.value() == net.ind)) {
             col = highlightConColour;
         }
-        for (const auto& portPair: net.obj.map) {
+        for (const auto& portPair: net.obj.getMap()) {
             lineVerts.emplace_back(sf::Vector2f(getPort(portPair.first).portPos), col);
             lineVerts.emplace_back(sf::Vector2f(getPort(portPair.second).portPos), col);
         }
