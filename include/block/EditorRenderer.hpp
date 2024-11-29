@@ -5,21 +5,27 @@
 #include "SFML/Graphics.hpp"
 #include <imgui.h>
 
-#include "Block.hpp"
+#include "Editor.hpp"
 
-class BlockRenderer {
-    static constexpr float        defaultViewSize = 35;
-    static constexpr float        crossSize       = 0.1f;
+class EditorRenderer {
+    static constexpr float        defaultViewSize    = 35;
+    static constexpr float        zoomFact           = 1.05f;
+    static constexpr float        nameScale          = 1.5f;
+    static constexpr float        crossSize          = 0.1f;
+    static constexpr float        hlRad              = 0.1f;
+    static constexpr float        nodeRad            = 0.1f;
+    inline static const sf::Color nodeColour         = sf::Color::White;
+    inline static const sf::Color conColour          = sf::Color::White;
+    inline static const sf::Color newConColour       = sf::Color::Blue;
+    inline static const sf::Color highlightConColour = sf::Color::Green;
     inline static const sf::Color crossCol{255, 255, 255, 70};
-    static constexpr float        hlRad     = 0.1f;
-    static constexpr float        zoomFact  = 1.05f;
-    static constexpr float        nameScale = 1.5f;
 
     const sf::Font& font;
 
     float vsScale;
 
-    Block&            block;
+    Editor       editor;
+    const Block&      block;
     sf::RenderWindow& window;
     sf::View          view;
 
@@ -45,8 +51,8 @@ class BlockRenderer {
     }
 
   public:
-    BlockRenderer(Block& blck_, sf::RenderWindow& window_, const sf::Font& font_)
-        : font(font_), block(blck_), window(window_),
+    EditorRenderer(Block& block_, sf::RenderWindow& window_, const sf::Font& font_)
+        : font(font_), editor(block_), block(block_), window(window_),
           gridVertecies(block.size * block.size * 4 + 8), name(block.name, font) {
         // make grid
         for (std::size_t x = 0; x < block.size; ++x) {
@@ -108,7 +114,7 @@ class BlockRenderer {
         if (event.type == sf::Event::MouseButtonReleased &&
             event.mouseButton.button == sf::Mouse::Left) {
             if (moveStatus != MoveStatus::moveConfirmed) {
-                block.event(event, window, mousePos);
+                editor.event(event, mousePos);
             }
             moveStatus = MoveStatus::idle;
         }
@@ -127,21 +133,65 @@ class BlockRenderer {
                 moveStatus = MoveStatus::moveConfirmed;
         }
         draw(mousePos);
-        block.frame(window, mousePos);
+        editor.frame(mousePos);
     }
 
   private:
     void draw(const sf::Vector2f& mousePos) {
-        sf::Vector2i mouseCoord = block.snapToGrid(mousePos);
+        sf::Vector2i mouseCoord = editor.snapToGrid(mousePos);
 
+        // DEBUG
         ImGui::Begin("Debug", NULL, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y); // DEBUG
-        ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x,
-                    mouseCoord.y); // DEBUG
+        ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y);
+        ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x, mouseCoord.y);
         ImGui::Text("View size: (%F, %F)", view.getSize().x, view.getSize().y);
         ImGui::End();
 
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
+
+        if (editor.state == Editor::BlockState::Connecting) { // draw new connection
+            std::array<sf::Vertex, 2> conLine{
+                sf::Vertex{sf::Vector2f{editor.conStartPos}, newConColour},
+                sf::Vertex{sf::Vector2f{editor.conEndPos}, newConColour}};
+            window.draw(conLine.data(), 2, sf::PrimitiveType::Lines);
+            switch (typeOf(editor.conStartObjVar)) {
+            case ObjAtCoordType::Con:
+            case ObjAtCoordType::Empty: {
+                sf::CircleShape newNode{1.5f * nodeRad};
+                newNode.setFillColor(newConColour);
+                newNode.setPosition(sf::Vector2f{editor.conStartPos} -
+                                    (1.5f * sf::Vector2f{nodeRad, nodeRad}));
+                window.draw(newNode);
+            }
+            default: // errors
+                break;
+            }
+        }
+        // draw connections
+        std::vector<sf::Vertex> lineVerts;
+        for (const auto& net: block.conNet.nets) {
+            sf::Color col = conColour;
+            if ((editor.conStartCloNet &&
+                 editor.conStartCloNet.value() == net.ind) || // if needs highlighting
+                (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind)) {
+                col = highlightConColour;
+            }
+            for (const auto& portPair: net.obj.getMap()) {
+                lineVerts.emplace_back(sf::Vector2f(editor.getPort(portPair.first).portPos), col);
+                lineVerts.emplace_back(sf::Vector2f(editor.getPort(portPair.second).portPos), col);
+            }
+        }
+        window.draw(lineVerts.data(), lineVerts.size(), sf::PrimitiveType::Lines);
+        // draw nodes
+        for (const auto& node: block.nodes) {
+            ImGui::Text("Node connection count: %zu", block.conNet.getNodeConCount(node.ind));
+            if (block.conNet.getNodeConCount(node.ind) != 2) {
+                sf::CircleShape circ{nodeRad};
+                circ.setFillColor(nodeColour);
+                circ.setPosition(sf::Vector2f{node.obj.pos} - sf::Vector2f{nodeRad, nodeRad});
+                window.draw(circ);
+            }
+        }
 
         coordHl.setPosition(sf::Vector2f(mouseCoord));
         window.draw(coordHl);

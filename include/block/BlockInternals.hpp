@@ -18,7 +18,7 @@ inline float mag(const sf::Vector2i& vec) {
     return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
 }
 
-class Block;
+struct Block;
 
 enum struct PortType { input, output, node };
 
@@ -180,7 +180,7 @@ class ClosedNet {
     }
 
     // NOTE: Destroy network "other". Adds all connections from another network
-    void operator+=(const  ClosedNet& other) { 
+    void operator+=(const ClosedNet& other) {
         for (const auto& con: other.conMap) {
             insert({con.first, con.second});
         }
@@ -213,7 +213,7 @@ class ConnectionNetwork {
                     std::cout << "made loop within closed networks \n";
                     return;
                 } else {
-                    std::cout << "connected two closed networks \n"; 
+                    std::cout << "connected two closed networks \n";
                     if (nets[net1Ref].getSize() < nets[net2Ref].getSize())
                         std::swap(net1Ref, net2Ref);
                     // net1 is now the bigger of the two

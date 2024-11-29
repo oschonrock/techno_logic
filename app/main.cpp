@@ -7,7 +7,7 @@
 #include "SFML/System/Clock.hpp"
 #include "SFML/Window/Event.hpp"
 
-#include "block/BlockRenderer.hpp"
+#include "block/EditorRenderer.hpp"
 
 int main() {
     sf::Font font;
@@ -23,7 +23,7 @@ int main() {
     Block block{};
     block.name        = "Example";
     block.description = "This is an example block :)";
-    BlockRenderer rend{block, window, font};
+    EditorRenderer rend{block, window, font};
 
     sf::Clock deltaClock;
     while (window.isOpen()) {
