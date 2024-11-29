@@ -1,5 +1,4 @@
 #include "Editor.hpp"
-#include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Window/Event.hpp>
 #include <imgui.h>
 
@@ -17,21 +16,21 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) {
 
 PortInst& Editor::getPort(const PortRef& port) {
     switch (typeOf(port.ref)) {
-    case VariantType::Node:
+    case PortObjType::Node:
         return block.nodes[std::get<Ref<Node>>(port.ref)].ports[port.portNum];
-    case VariantType::Gate:
+    case PortObjType::Gate:
         return block.gates[std::get<Ref<Gate>>(port.ref)].ports[port.portNum];
-    case VariantType::BlockInst:
+    case PortObjType::BlockInst:
         return block.blockInstances[std::get<Ref<BlockInst>>(port.ref)].ports[port.portNum];
     }
 }
 const PortInst& Editor::getPort(const PortRef& port) const {
     switch (typeOf(port.ref)) {
-    case VariantType::Node:
+    case PortObjType::Node:
         return block.nodes[std::get<Ref<Node>>(port.ref)].ports[port.portNum];
-    case VariantType::Gate:
+    case PortObjType::Gate:
         return block.gates[std::get<Ref<Gate>>(port.ref)].ports[port.portNum];
-    case VariantType::BlockInst:
+    case PortObjType::BlockInst:
         return block.blockInstances[std::get<Ref<BlockInst>>(port.ref)].ports[port.portNum];
     }
 }
@@ -124,16 +123,10 @@ bool Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
 
 void Editor::frame(const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
-    ImGui::Begin("Debug", NULL, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("Proposed connection %slegal", conEndLegal ? "" : "il");
-    ImGui::Text("Number of nodes: %zu", block.nodes.size());
-    ImGui::Text("Number of closed networks: %zu", block.conNet.nets.size());
     switch (state) {
     case BlockState::Idle: {
         conStartPos    = mouseGridPos;
         conStartObjVar = whatIsAtCoord(conStartPos);
-        ImGui::Text("Hovering: %s at (%d,%d)", ObjAtCoordStrings[conStartObjVar.index()].c_str(),
-                    conStartPos.x, conStartPos.y);
         // if network component highlight network
         switch (typeOf(conStartObjVar)) {
         case ObjAtCoordType::Node: {
@@ -177,11 +170,6 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         }
         conEndObjVar = whatIsAtCoord(conEndPos);
         checkConLegal();
-        ImGui::Text("Connection started from %s at (%d,%d)",
-                    ObjAtCoordStrings[conStartObjVar.index()].c_str(), conStartPos.x,
-                    conStartPos.y);
-        ImGui::Text("Hovering %s at (%d,%d)", ObjAtCoordStrings[conEndObjVar.index()].c_str(),
-                    conEndPos.x, conEndPos.y);
         // if network component highlight network
         switch (typeOf(conEndObjVar)) {
         case ObjAtCoordType::Node: {
@@ -199,5 +187,4 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         break;
     }
     }
-    ImGui::End();
 }

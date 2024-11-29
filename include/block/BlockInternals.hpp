@@ -57,7 +57,9 @@ class Gate {
 };
 
 using PortObjRef = std::variant<Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
-enum struct VariantType : std::size_t { Node = 0, Gate = 1, BlockInst = 2 };
+enum struct PortObjType : std::size_t { Node = 0, Gate = 1, BlockInst = 2 };
+static constexpr std::array<std::string, 3> PortObjRefStrings{"node", "gate", "block"};
+
 
 class PortRef {
   public:
@@ -71,8 +73,8 @@ class PortRef {
     }
 };
 
-inline VariantType typeOf(const PortObjRef& ref) { return VariantType(ref.index()); }
-inline VariantType typeOf(const PortRef& ref) { return typeOf(ref.ref); }
+inline PortObjType typeOf(const PortObjRef& ref) { return PortObjType(ref.index()); }
+inline PortObjType typeOf(const PortRef& ref) { return typeOf(ref.ref); }
 
 template <>
 struct std::hash<PortRef> {
@@ -199,8 +201,8 @@ class ConnectionNetwork {
             return;
         }
 
-        if (typeOf(con.portRef1) == VariantType::Node && // conecting two nodes
-            typeOf(con.portRef2) == VariantType::Node) {
+        if (typeOf(con.portRef1) == PortObjType::Node && // conecting two nodes
+            typeOf(con.portRef2) == PortObjType::Node) {
             std::optional<Ref<ClosedNet>> net1 =
                 getClosNetRef(std::get<Ref<Node>>(con.portRef1.ref));
             std::optional<Ref<ClosedNet>> net2 =
@@ -231,7 +233,7 @@ class ConnectionNetwork {
 
         // connecting exisitng node and obj
         const PortRef& nodePort =
-            typeOf(con.portRef1) == VariantType::Node ? con.portRef1 : con.portRef2;
+            typeOf(con.portRef1) == PortObjType::Node ? con.portRef1 : con.portRef2;
         nets[getClosNetRef(nodePort).value()].insert(con);
     }
 

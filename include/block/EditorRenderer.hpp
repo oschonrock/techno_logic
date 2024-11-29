@@ -18,13 +18,14 @@ class EditorRenderer {
     inline static const sf::Color conColour          = sf::Color::White;
     inline static const sf::Color newConColour       = sf::Color::Blue;
     inline static const sf::Color highlightConColour = sf::Color::Green;
+    inline static const sf::Color debugColour        = sf::Color::Magenta;
     inline static const sf::Color crossCol{255, 255, 255, 70};
 
     const sf::Font& font;
 
     float vsScale;
 
-    Editor       editor;
+    Editor            editor;
     const Block&      block;
     sf::RenderWindow& window;
     sf::View          view;
@@ -39,6 +40,10 @@ class EditorRenderer {
     MoveStatus                                  moveStatus{MoveStatus::idle};
     sf::Vector2i                                mousePosOriginal;
     sf::Vector2f                                mousePosLast;
+    bool                                        debugEnabled = true;
+    std::optional<Ref<Node>>                    debugNode;
+    std::optional<std::pair<PortRef, PortRef>>  debugCon;
+    std::optional<Ref<ClosedNet>>               debugNet;
 
     void setViewDefault() {
         vsScale =
@@ -141,11 +146,101 @@ class EditorRenderer {
         sf::Vector2i mouseCoord = editor.snapToGrid(mousePos);
 
         // DEBUG
-        ImGui::Begin("Debug", NULL, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y);
-        ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x, mouseCoord.y);
-        ImGui::Text("View size: (%F, %F)", view.getSize().x, view.getSize().y);
-        ImGui::End();
+        debugCon.reset();
+        debugNode.reset();
+        debugNet.reset();
+        if (debugEnabled) {
+            ImGui::Begin("Debug", NULL);
+            if (ImGui::TreeNode("Visual")) {
+                ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y);
+                ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x, mouseCoord.y);
+                ImGui::Text("View size: (%F, %F)", view.getSize().x, view.getSize().y);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode("Current Connection")) {
+                std::string startHover = ObjAtCoordStrings[editor.conStartObjVar.index()];
+                switch (editor.state) {
+                case Editor::BlockState::Idle:
+                    ImGui::Text("Hovering %s", startHover.c_str());
+                    break;
+                case Editor::BlockState::Connecting:
+                    ImGui::Text("Start connected to %s", startHover.c_str());
+                    std::string endHover = ObjAtCoordStrings[editor.conEndObjVar.index()];
+                    ImGui::Text("Hovering %s", endHover.c_str());
+                    break;
+                }
+                ImGui::Text("Proposed connection %slegal", editor.conEndLegal ? "" : "il");
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNodeEx("Networks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                static ImGuiTableFlags flags =
+                    ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                    ImGuiTableFlags_SizingStretchSame |
+                    ImGuiTableFlags_Resizable; // ImGuiTableFlags_NoHostExtendX |
+                                               // ImGuiTableFlags_SizingFixedFit
+                if (ImGui::BeginTable("Connections", 3, flags)) {
+                    ImGui::TableSetupColumn("Network");
+                    ImGui::TableSetupColumn("Port1");
+                    ImGui::TableSetupColumn("Port2");
+                    ImGui::TableHeadersRow();
+                    int netCount = 1;
+                    for (const auto& net: block.conNet.nets) {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::PushID(netCount);
+                        if (ImGui::TreeNodeEx("",
+                                              ImGuiTreeNodeFlags_DefaultOpen |
+                                                  ImGuiTreeNodeFlags_AllowItemOverlap |
+                                                  ImGuiTreeNodeFlags_SpanAvailWidth,
+                                              "Net %d", netCount)) {
+                            std::size_t conCount = 1;
+                            if (ImGui::IsItemHovered()) {
+                                debugNet = net.ind;
+                                ImGui::SetTooltip("Debug net");
+                            }
+                            for (const auto& portPair: net.obj.getMap()) {
+                                if (conCount != 1) {
+                                    ImGui::TableNextRow();
+                                }
+
+                                ImGui::TableSetColumnIndex(1);
+                                ImGui::Selectable(
+                                    PortObjRefStrings[portPair.first.ref.index()].c_str(), false);
+                                if (ImGui::IsItemHovered() &&
+                                    typeOf(portPair.first) == PortObjType::Node) {
+                                    debugNode = std::get<Ref<Node>>(portPair.first.ref);
+                                    debugCon  = portPair;
+                                    ImGui::SetTooltip("Debug node and con");
+                                }
+
+                                ImGui::TableNextColumn();
+                                ImGui::Selectable(
+                                    PortObjRefStrings[portPair.second.ref.index()].c_str(), false);
+                                if (ImGui::IsItemHovered() &&
+                                    typeOf(portPair.second) == PortObjType::Node) {
+                                    debugNode = std::get<Ref<Node>>(portPair.second.ref);
+                                    debugCon  = portPair;
+                                    ImGui::SetTooltip("Debug node and con");
+                                }
+                                ++conCount;
+                            }
+                            ImGui::TreePop();
+                        } else {
+                            ImGui::TableNextColumn();
+                            ImGui::TextDisabled("...");
+                            ImGui::TableNextColumn();
+                            ImGui::TextDisabled("...");
+                        }
+                        ImGui::PopID();
+                        ++netCount;
+                    }
+                    ImGui::EndTable();
+                }
+                ImGui::TreePop();
+            }
+            // if (debugNet) 
+            ImGui::End();
+        }
 
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
 
@@ -157,10 +252,10 @@ class EditorRenderer {
             switch (typeOf(editor.conStartObjVar)) {
             case ObjAtCoordType::Con:
             case ObjAtCoordType::Empty: {
-                sf::CircleShape newNode{1.5f * nodeRad};
+                sf::CircleShape newNode{1.2f * nodeRad};
                 newNode.setFillColor(newConColour);
                 newNode.setPosition(sf::Vector2f{editor.conStartPos} -
-                                    (1.5f * sf::Vector2f{nodeRad, nodeRad}));
+                                    (1.2f * sf::Vector2f{nodeRad, nodeRad}));
                 window.draw(newNode);
             }
             default: // errors
@@ -171,12 +266,15 @@ class EditorRenderer {
         std::vector<sf::Vertex> lineVerts;
         for (const auto& net: block.conNet.nets) {
             sf::Color col = conColour;
-            if ((editor.conStartCloNet &&
-                 editor.conStartCloNet.value() == net.ind) || // if needs highlighting
+            if ((editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
                 (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind)) {
-                col = highlightConColour;
-            }
+                col = highlightConColour;                       // editor hover color
+            } else if (debugNet && debugNet.value() == net.ind) // debug color
+                col = debugColour;
+
             for (const auto& portPair: net.obj.getMap()) {
+                if (debugCon && debugCon.value() == portPair) col = debugColour; // debug color
+
                 lineVerts.emplace_back(sf::Vector2f(editor.getPort(portPair.first).portPos), col);
                 lineVerts.emplace_back(sf::Vector2f(editor.getPort(portPair.second).portPos), col);
             }
@@ -184,13 +282,19 @@ class EditorRenderer {
         window.draw(lineVerts.data(), lineVerts.size(), sf::PrimitiveType::Lines);
         // draw nodes
         for (const auto& node: block.nodes) {
-            ImGui::Text("Node connection count: %zu", block.conNet.getNodeConCount(node.ind));
             if (block.conNet.getNodeConCount(node.ind) != 2) {
                 sf::CircleShape circ{nodeRad};
                 circ.setFillColor(nodeColour);
                 circ.setPosition(sf::Vector2f{node.obj.pos} - sf::Vector2f{nodeRad, nodeRad});
                 window.draw(circ);
-            }
+            };
+        }
+        if (debugNode) { // draw debug node
+            sf::CircleShape circ{nodeRad * 1.2f};
+            circ.setFillColor(debugColour);
+            circ.setPosition(sf::Vector2f{block.nodes[debugNode.value()].pos} -
+                             (sf::Vector2f{nodeRad, nodeRad} * 1.2f));
+            window.draw(circ);
         }
 
         coordHl.setPosition(sf::Vector2f(mouseCoord));
