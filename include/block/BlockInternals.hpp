@@ -195,7 +195,7 @@ class ConnectionNetwork {
         const auto& net   = nets[getClosNetRef(node).value()]; // connection assumed because node
         std::size_t count = 0;
         for (std::size_t port = 0; port < 4; ++port) {
-            count += net.contains(PortRef{node, port}) ? 1 : 0;
+            if (net.contains(PortRef{node, port})) ++count;
         }
         return count;
     }

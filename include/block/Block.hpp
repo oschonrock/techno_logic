@@ -34,7 +34,7 @@ class Block {
     PortInst&       getPort(const PortRef& port);
     const PortInst& getPort(const PortRef& port) const;
     bool            collisionCheck(const Connection& connection, const sf::Vector2i& coord) const;
-    bool            isNewConPoss() const;
+    void            checkConLegal();
     [[nodiscard]] PortRef makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
 
@@ -44,6 +44,7 @@ class Block {
     ObjAtCoordVar                 conEndObjVar;
     std::optional<Ref<ClosedNet>> conStartCloNet;
     std::optional<Ref<ClosedNet>> conEndCloNet;
+    bool                          conEndLegal;
 
   public:
     std::size_t size = 100;

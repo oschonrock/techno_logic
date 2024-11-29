@@ -44,6 +44,20 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
     return isVecBetween(coord, getPort(con.portRef1).portPos, getPort(con.portRef2).portPos);
 }
 
+void Block::checkConLegal() {
+    conEndLegal = typeOf(conEndObjVar) <= ObjAtCoordType::Node;
+    if (conStartPos == conEndPos)
+        conEndLegal = false;
+
+    else if (conStartCloNet && conEndCloNet &&
+             conStartCloNet.value() == conEndCloNet.value()) { // recomendation
+        ImGui::SetTooltip("Connection proposes loop");
+    }
+    if (!conEndLegal) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+    }
+}
+
 [[nodiscard]] PortRef Block::makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
                                             Direction dirIntoPort) {
     switch (typeOf(var)) {
@@ -74,8 +88,7 @@ sf::Vector2i Block::snapToGrid(const sf::Vector2f& pos) const {
 
 bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
-    if (event.type ==
-            sf::Event::MouseButtonReleased && // maybe should be release and if view has not moved
+    if (event.type == sf::Event::MouseButtonReleased &&
         event.mouseButton.button == sf::Mouse::Left) {
         auto clickedObj = whatIsAtCoord(mouseGridPos);
         switch (state) {
@@ -90,9 +103,8 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
             }
             break;
         }
-        case BlockState::Connecting: {                     // connection finished
-            if (typeOf(clickedObj) > ObjAtCoordType::Node) // not connectable
-                break;
+        case BlockState::Connecting: { // connection finished
+            if (!conEndLegal) break;
 
             PortRef startPort =
                 makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
@@ -118,6 +130,7 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
 void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
     ImGui::Begin("Debug");
+    ImGui::Text("Proposed connection %slegal", conEndLegal ? "" : "il");
     ImGui::Text("Number of nodes: %zu", nodes.size());
     ImGui::Text("Number of closed networks: %zu", conNet.nets.size());
     switch (state) {
@@ -142,8 +155,30 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         break;
     }
     case BlockState::Connecting: {
-        conEndPos    = conStartPos + snapToAxis(mouseGridPos - conStartPos);
+        sf::Vector2i diff = snapToAxis(mouseGridPos - conStartPos);
+        if (diff == sf::Vector2i{}) {
+            conEndLegal = false;
+            break;
+        }
+        switch (typeOf(conStartObjVar)) {
+        case ObjAtCoordType::Port: {
+            const PortInst& port{getPort(std::get<PortRef>(conStartObjVar))};
+            conEndPos =
+                dirToVec(port.portDir) * std::clamp(dot(dirToVec(port.portDir), diff), 0, INT_MAX);
+            break;
+        }
+        case ObjAtCoordType::Node: { // if node port already in use in this direction use old
+            if (conNet.getClosNetRef(PortRef{std::get<Ref<Node>>(conStartObjVar),
+                                             static_cast<std::size_t>(vecToDir(diff))})) {
+                break;
+            } // else default
+        }
+        default:
+            conEndPos = conStartPos + diff;
+            break;
+        }
         conEndObjVar = whatIsAtCoord(conEndPos);
+        checkConLegal();
         ImGui::Text("Connection started from %s at (%d,%d)",
                     ObjAtCoordStrings[conStartObjVar.index()].c_str(), conStartPos.x,
                     conStartPos.y);
@@ -162,9 +197,7 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         default:
             conEndCloNet.reset();
         }
-        if (conStartCloNet && conEndCloNet && conStartCloNet.value() == conEndCloNet.value()) {
-            ImGui::SetTooltip("You're are making a loop silly");
-        }
+
         break;
     }
     }
