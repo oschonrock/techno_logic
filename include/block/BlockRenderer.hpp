@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cmath>
-#include <imGUI.h>
 
 #include "SFML/Graphics.hpp"
+#include <imgui.h>
 
 #include "Block.hpp"
 
