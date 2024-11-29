@@ -111,11 +111,8 @@ bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Ve
             PortRef endPort =
                 makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
 
-            // MAKING NEW NETWORK if no connections are nodes or connections...
-            bool isNewClosNet = (typeOf(conStartObjVar) != ObjAtCoordType::Node &&
-                                 typeOf(conStartObjVar) != ObjAtCoordType::Con &&
-                                 typeOf(conEndObjVar) != ObjAtCoordType::Node &&
-                                 typeOf(conEndObjVar) != ObjAtCoordType::Con);
+            // MAKING NEW NETWORK
+            bool isNewClosNet = (!conStartCloNet && !conEndCloNet);
 
             state = BlockState::Idle;
             conEndCloNet.reset();
