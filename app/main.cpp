@@ -28,13 +28,11 @@ int main() {
     sf::Clock deltaClock;
     while (window.isOpen()) {
         sf::Vector2i mousePixPos = sf::Mouse::getPosition(window);
-        sf::Vector2f mousePos    = window.mapPixelToCoords(mousePixPos);
-        mousePos.y               = mousePos.y;
 
         sf::Event event;
         while (window.pollEvent(event)) {
             ImGui::SFML::ProcessEvent(window, event);
-            rend.event(event, mousePos);
+            rend.event(event, mousePixPos);
             if (event.type == sf::Event::Closed) {
                 window.close();
             }
@@ -43,7 +41,7 @@ int main() {
         ImGui::SFML::Update(window, deltaClock.restart());
 
         window.clear();
-        rend.frame(mousePos);
+        rend.frame(mousePixPos);
         ImGui::SFML::Render(window);
         window.display();
     }

@@ -2,8 +2,6 @@
 
 #include <cmath>
 #include <imGUI.h>
-#include <iostream>
-#include <optional>
 
 #include "SFML/Graphics.hpp"
 
@@ -29,7 +27,12 @@ class BlockRenderer {
     sf::CircleShape         coordHl{hlRad};
     sf::Text                name;
 
-    std::optional<sf::Vector2f> mousePosLast;
+    enum struct MoveStatus : std::size_t { idle = 0, moveStarted = 1, moveConfirmed = 2 };
+    static constexpr std::array<std::string, 3> MoveStatusStrings{"idle", "moveStarted",
+                                                                  "moveConfirmed"};
+    MoveStatus                                  moveStatus{MoveStatus::idle};
+    sf::Vector2i                                mousePosOriginal;
+    sf::Vector2f                                mousePosLast;
 
     void setViewDefault() {
         vsScale =
@@ -74,7 +77,7 @@ class BlockRenderer {
         gridVertecies[gridVertecies.size() - 1] = bl;
 
         // set up highlighter
-        coordHl.setFillColor(sf::Color{255, 0, 0, 100});
+        coordHl.setFillColor(crossCol);
         coordHl.setOrigin({hlRad, hlRad});
 
         // set up name
@@ -86,40 +89,46 @@ class BlockRenderer {
         setViewDefault();
     }
 
-    void event(const sf::Event& event, const sf::Vector2f& mousePos) {
-        // sf::Vector2i mouseCoord = block.snapToGrid(mousePos);
-        if (ImGui::GetIO().WantCaptureMouse || block.event(event, window, mousePos)) return;
+    void event(const sf::Event& event, const sf::Vector2i& mousePixPos) {
+        sf::Vector2f mousePos = window.mapPixelToCoords(mousePixPos);
+        if (ImGui::GetIO().WantCaptureMouse) return;
         if (event.type == sf::Event::MouseWheelMoved) {
             float        zoom = static_cast<float>(std::pow(zoomFact, -event.mouseWheel.delta));
             sf::Vector2f diff = mousePos - view.getCenter();
             view.zoom(zoom);
             view.move(diff * (1 - zoom));
             window.setView(view);
-            // std::cout << event.mouseWheel.delta << "\n";
-        } else if (event.type == sf::Event::MouseButtonReleased) {
-            if (event.mouseButton.button == sf::Mouse::Left) {
-                mousePosLast.reset();
+        }
+        if (event.type == sf::Event::MouseButtonPressed &&
+            event.mouseButton.button == sf::Mouse::Left) {
+            moveStatus       = MoveStatus::moveStarted;
+            mousePosOriginal = mousePixPos;
+            mousePosLast     = mousePos;
+        }
+        if (event.type == sf::Event::MouseButtonReleased &&
+            event.mouseButton.button == sf::Mouse::Left) {
+            if (moveStatus != MoveStatus::moveConfirmed) {
+                block.event(event, window, mousePos);
             }
+            moveStatus = MoveStatus::idle;
         }
     }
 
     // called every visual frame
-    void frame(const sf::Vector2f& mousePos) {
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-            if (!mousePosLast)
-                mousePosLast = mousePos;
-            else {
-                // moves grabbed point underneath cursor
-                ImGui::SetTooltip("Moving"); // DEBUG
-                view.move(*mousePosLast - mousePos);
-                window.setView(view);
-            }
+    void frame(const sf::Vector2i& mousePixPos) {
+        sf::Vector2f mousePos = window.mapPixelToCoords(mousePixPos);
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && moveStatus != MoveStatus::idle) {
+            if (moveStatus == MoveStatus::moveConfirmed)
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+            view.move(mousePosLast - mousePos); // moves grabbed point underneath cursor
+            window.setView(view);
+            if (mag(mousePixPos - mousePosOriginal) / static_cast<float>(window.getSize().x) >
+                0.03f)
+                moveStatus = MoveStatus::moveConfirmed;
         }
         draw(mousePos);
         block.frame(window, mousePos);
     }
-
 
   private:
     void draw(const sf::Vector2f& mousePos) {

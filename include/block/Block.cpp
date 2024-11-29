@@ -75,7 +75,7 @@ sf::Vector2i Block::snapToGrid(const sf::Vector2f& pos) const {
 bool Block::event(const sf::Event& event, sf::RenderWindow& window, const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
     if (event.type ==
-            sf::Event::MouseButtonPressed && // maybe should be release and if view has not moved
+            sf::Event::MouseButtonReleased && // maybe should be release and if view has not moved
         event.mouseButton.button == sf::Mouse::Left) {
         auto clickedObj = whatIsAtCoord(mouseGridPos);
         switch (state) {
@@ -161,6 +161,9 @@ void Block::frame(sf::RenderWindow& window, const sf::Vector2f& mousePos) {
         }
         default:
             conEndCloNet.reset();
+        }
+        if (conStartCloNet && conEndCloNet && conStartCloNet.value() == conEndCloNet.value()) {
+            ImGui::SetTooltip("You're are making a loop silly");
         }
         break;
     }
