@@ -51,16 +51,3 @@ inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1,
     // imagine end1 is origin
     return magPolar(vec - end1) + magPolar(end2 - vec) == magPolar(end2 - end1);
 }
-
-inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
-    if (abs(vec.x) > abs(vec.y)) {
-        return {vec.x, 0};
-    } else {
-        return {0, vec.y};
-    }
-}
-
-inline float mag(const sf::Vector2f& vec) { return std::sqrt(vec.x * vec.x + vec.y * vec.y); }
-inline float mag(const sf::Vector2i& vec) {
-    return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
-}

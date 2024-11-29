@@ -1,10 +1,23 @@
 #pragma once
 
-#include "Helpers.hpp"
+#include "Direction.hpp"
 #include "details/StableVector.hpp"
 #include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/System/Vector2.hpp>
 #include <vector>
+
+inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
+    if (abs(vec.x) > abs(vec.y)) {
+        return {vec.x, 0};
+    } else {
+        return {0, vec.y};
+    }
+}
+
+inline float mag(const sf::Vector2f& vec) { return std::sqrt(vec.x * vec.x + vec.y * vec.y); }
+inline float mag(const sf::Vector2i& vec) {
+    return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
+}
+
 
 class PortInst {
   public:
@@ -49,7 +62,7 @@ class PortRef {
     PortRef(PortObjRef ref_, std::size_t portNum_) : ref(ref_), portNum(portNum_) {}
 
     bool operator==(const PortRef& other) const {
-        return (ref == other.ref) || (portNum == other.portNum);
+        return (ref == other.ref) && (portNum == other.portNum);
     }
 
     bool isConnected(const PortRef& other) const {
@@ -93,11 +106,11 @@ struct std::hash<Connection> { // hash function commutative
 
 class ClosedNet {
   private:
-    std::unordered_map<PortRef, PortRef> map2{};
+    absl::flat_hash_map<PortRef, PortRef> map2{};
 
   public:
-    std::unordered_map<PortRef, PortRef>
-         map{}; // TODO should be private and provide connection iterators
+    absl::flat_hash_map<PortRef, PortRef>
+         map{}; // TODO maybe should be private and provide connection iterators
     bool hasInput = false;
 
     void insert(const Connection& con) {
