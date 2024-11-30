@@ -40,9 +40,9 @@ struct Block {
         net.erase(con);
         net.insert(Connection(con.portRef1,
                               PortRef{nodeRef, static_cast<std::size_t>(dir), PortType::node}));
-        net.insert(Connection(
-            con.portRef2,
-            PortRef{nodeRef, static_cast<std::size_t>(reverseDirection(dir)), PortType::node}));
+        net.insert(
+            Connection(con.portRef2, PortRef{nodeRef, static_cast<std::size_t>(reverseDir(dir)),
+                                             PortType::node}));
     }
 
     bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const {

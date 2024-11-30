@@ -44,19 +44,19 @@ bool Editor::checkPropEndPosLegal(const sf::Vector2i& propPos) const {
     case ObjAtCoordType::Empty: { // make new node
         std::cout << "new node made" << std::endl;
         Ref<Node> node = block.nodes.insert(Node{pos});
-        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort)), PortType::node};
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
     case ObjAtCoordType::Con: { // make new node and split connection
         Ref<Node> node = block.nodes.insert(Node{pos});
         block.splitConWithNode(std::get<Connection>(var), node);
-        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort)), PortType::node};
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
     case ObjAtCoordType::Port: { // return portRef
         return std::get<PortRef>(var);
     }
     case ObjAtCoordType::Node: {
         Ref<Node> node = std::get<Ref<Node>>(var);
-        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort)), PortType::node};
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
     default:
         throw std::logic_error("Cannot make connection to location which isn't viable");
@@ -130,48 +130,48 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         break;
     }
     case BlockState::Connecting: {
-        sf::Vector2i diff = snapToAxis(mouseGridPos - conStartPos);
-        sf::Vector2i newEndProp;
+        sf::Vector2i diff       = mouseGridPos - conStartPos;
+        sf::Vector2i newEndProp = conStartPos + snapToAxis(diff); // default
         conEndCloNet.reset();
 
-        if (diff == sf::Vector2i{}) { // havent moved from start
+        if (diff == sf::Vector2i{}) { // havent moved from start maybe not nescesarry anymore
             conEndLegal = false;
             break;
         }
+
         // work out proposed end point based on state
-        switch (typeOf(conStartObjVar)) {
+        switch (typeOf(conStartObjVar)) { // from 1, up to dot(diff, portDir)
         case ObjAtCoordType::Port: {
-            const PortInst& port{block.getPort(std::get<PortRef>(conStartObjVar))};
-            newEndProp =
-                dirToVec(port.portDir) * std::clamp(dot(dirToVec(port.portDir), diff), 0, INT_MAX);
+            const auto& port     = block.getPort(std::get<PortRef>(conStartObjVar));
+            int         bestDist = std::clamp(dot(port.portDir, diff), 0, INT_MAX);
+            newEndProp           = conStartPos + (dirToVec(port.portDir) * bestDist);
+        }
+        case ObjAtCoordType::Node: { // find best AVAILABLE direction
+            const auto& nodeRef  = std::get<Ref<Node>>(conStartObjVar);
+            const auto& node     = block.nodes[nodeRef];
+            auto        bestPort = std::max_element(
+                node.ports.begin(), node.ports.end(), [&](const auto& max, const auto& elem) {
+                    return block.conNet.contains(PortRef(
+                               nodeRef, static_cast<std::size_t>(max.portDir), PortType::node)) ||
+                           dot(max.portDir, diff) < dot(elem.portDir, diff);
+                });
+            int bestDist = std::clamp(dot(bestPort->portDir, diff), 0, INT_MAX);
+            newEndProp   = conStartPos + (dirToVec(bestPort->portDir) * bestDist);
             break;
         }
-        case ObjAtCoordType::Node: { // if node port already in use in this direction don't
-                                     // update
-            if (!block.conNet.getClosNetRef(PortRef{std::get<Ref<Node>>(conStartObjVar),
-                                                    static_cast<std::size_t>(vecToDir(diff)),
-                                                    PortType::node})) {
-                newEndProp = conStartPos + diff;
-            } else {
-                newEndProp = conEndPos; // else don't update
-            }
-            break; // TODO maybe change kinda klunky atm... expecially for con
-        }
         case ObjAtCoordType::Con: {
-            Direction dir = block.getPort(std::get<Connection>(conStartObjVar).portRef1).portDir;
-            if (dot(diff, dirToVec(dir)) == 0) { // if not in connection direction update
-                newEndProp = conStartPos + diff;
-            } else { 
-                newEndProp = conEndPos; // else don't update
-            }
+            Direction oldConDir =
+                block.getPort(std::get<Connection>(conStartObjVar).portRef1).portDir;
+            Direction newConDir = swapXY(oldConDir);
+            auto      dist      = dot(newConDir, diff);
+            newEndProp          = conStartPos + (dirToVec(newConDir) * dist);
             break;
         }
         case ObjAtCoordType::Empty: {
-            newEndProp = conStartPos + diff;
             break;
         }
         default:
-            throw std::logic_error("Not implemented yet LMAO");
+            throw std::logic_error("Start hover interactions not implemented yet for this object");
             break;
         }
 
