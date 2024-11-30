@@ -20,6 +20,8 @@ inline float mag(const sf::Vector2i& vec) {
 
 struct Block;
 
+// TODO maybe remove... really only used when inserting for entering in out/inputs
+// Is annoying elsewhere
 enum struct PortType { input, output, node };
 
 class PortInst {
@@ -65,7 +67,8 @@ class PortRef {
     PortObjRef  ref;
     std::size_t portNum;
     PortType    portType;
-    PortRef(PortObjRef ref_, std::size_t portNum_) : ref(ref_), portNum(portNum_) {}
+    PortRef(PortObjRef ref_, std::size_t portNum_, PortType portType_)
+        : ref(ref_), portNum(portNum_), portType(portType_) {}
 
     bool operator==(const PortRef& other) const {
         return (ref == other.ref) && (portNum == other.portNum);
@@ -167,8 +170,10 @@ class ClosedNet {
 
     // prefer call contains() on port
     [[nodiscard]] bool contains(const Ref<Node> node) const {
-        return contains(PortRef{node, 0}) || contains(PortRef{node, 1}) ||
-               contains(PortRef{node, 2}) || contains(PortRef{node, 3});
+        return contains(PortRef{node, 0, PortType::node}) ||
+               contains(PortRef{node, 1, PortType::node}) ||
+               contains(PortRef{node, 2, PortType::node}) ||
+               contains(PortRef{node, 3, PortType::node});
     }
 
     [[nodiscard]] Connection getCon(const PortRef& port) const {
@@ -223,8 +228,6 @@ class ConnectionNetwork {
         return;
     }
 
-    void splitCon(const Connection& con, const Ref<Node> node);
-
     // try to call this with ports over nodes if you have the port
     template <typename T>
     [[nodiscard]] std::optional<Ref<ClosedNet>> getClosNetRef(const T& obj) const {
@@ -236,14 +239,14 @@ class ConnectionNetwork {
 
     template <typename T>
     [[nodiscard]] bool contains(const T& obj) const {
-        return getClosNetRef(obj);
+        return getClosNetRef(obj).has_value();
     }
 
     [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const {
         const auto& net   = nets[getClosNetRef(node).value()]; // connection assumed because node
         std::size_t count = 0;
         for (std::size_t port = 0; port < 4; ++port) {
-            if (net.contains(PortRef{node, port})) ++count;
+            if (net.contains(PortRef{node, port, PortType::node})) ++count;
         }
         return count;
     }

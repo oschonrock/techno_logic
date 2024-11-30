@@ -272,8 +272,11 @@ class EditorRenderer {
         case Editor::BlockState::Idle:
             coordHl.setPosition(sf::Vector2f(mouseCoord));
             window.draw(coordHl);
+            break;
         case Editor::BlockState::Connecting:
-            drawSingleLine(editor.conStartPos, editor.conEndPos, newConColour);
+            if (editor.conEndLegal) {
+                drawSingleLine(editor.conStartPos, editor.conEndPos, newConColour);
+            }
             switch (typeOf(editor.conStartObjVar)) {
             case ObjAtCoordType::Con:
             case ObjAtCoordType::Empty: {

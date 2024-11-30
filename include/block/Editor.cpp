@@ -2,7 +2,7 @@
 #include <SFML/Window/Event.hpp>
 #include <imgui.h>
 
-ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) {
+ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) const {
     // check for nodes
     for (const auto& node: block.nodes) {
         if (coord == node.obj.pos) return node.ind;
@@ -12,7 +12,7 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) {
     for (const auto& net: block.conNet.nets) {
         for (const auto& portPair: net.obj.getMap()) {
             Connection con(portPair.first, portPair.second);
-            if (collisionCheck(con, coord)) cons.push_back(con);
+            if (block.collisionCheck(con, coord)) cons.push_back(con);
         }
     }
     if (cons.size() > 2)
@@ -26,22 +26,14 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) {
     return {};
 }
 
-bool Editor::collisionCheck(const Connection& con, const sf::Vector2i& coord) const {
-    return isVecBetween(coord, block.getPort(con.portRef1).portPos,
-                        block.getPort(con.portRef2).portPos);
-}
-
-void Editor::checkConEndLegal() {
-    conEndLegal = isValConTarget(conEndObjVar);
-    if (conStartPos == conEndPos)
-        conEndLegal = false;
-
-    else if (conStartCloNet && conEndCloNet && conStartCloNet.value() == conEndCloNet.value()) {
-        ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
+bool Editor::checkPropEndPosLegal(const sf::Vector2i& propPos) const {
+    if (conStartPos == propPos) return false;
+    auto propObj = whatIsAtCoord(propPos);
+    if (!isValConTarget(propObj)) {
+        ImGui::SetTooltip("Target obj invalid");
+        return false;
     }
-    if (!conEndLegal) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
-    }
+    return true;
 }
 
 // Returns ref to port at location
@@ -52,17 +44,19 @@ void Editor::checkConEndLegal() {
     case ObjAtCoordType::Empty: { // make new node
         std::cout << "new node made" << std::endl;
         Ref<Node> node = block.nodes.insert(Node{pos});
-        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort))};
+        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort)), PortType::node};
     }
     case ObjAtCoordType::Con: { // make new node and split connection
-        break;
+        Ref<Node> node = block.nodes.insert(Node{pos});
+        block.splitConWithNode(std::get<Connection>(var), node);
+        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort)), PortType::node};
     }
     case ObjAtCoordType::Port: { // return portRef
         return std::get<PortRef>(var);
     }
     case ObjAtCoordType::Node: {
         Ref<Node> node = std::get<Ref<Node>>(var);
-        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort))};
+        return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort)), PortType::node};
     }
     default:
         throw std::logic_error("Cannot make connection to location which isn't viable");
@@ -83,7 +77,7 @@ void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
         event.mouseButton.button == sf::Mouse::Left) {
         auto clickedObj = whatIsAtCoord(mouseGridPos);
         switch (state) {
-        case BlockState::Idle: {             // new connection started
+        case BlockState::Idle: {              // new connection started
             if (isValConTarget(clickedObj)) { // connectable
                 state = BlockState::Connecting;
                 // reset end... it will contain old data
@@ -137,39 +131,58 @@ void Editor::frame(const sf::Vector2f& mousePos) {
     }
     case BlockState::Connecting: {
         sf::Vector2i diff = snapToAxis(mouseGridPos - conStartPos);
-        if (diff == sf::Vector2i{}) {
+        sf::Vector2i newEndProp;
+        conEndCloNet.reset();
+
+        if (diff == sf::Vector2i{}) { // havent moved from start
             conEndLegal = false;
             break;
         }
+        // work out proposed end point based on state
         switch (typeOf(conStartObjVar)) {
         case ObjAtCoordType::Port: {
             const PortInst& port{block.getPort(std::get<PortRef>(conStartObjVar))};
-            conEndPos =
+            newEndProp =
                 dirToVec(port.portDir) * std::clamp(dot(dirToVec(port.portDir), diff), 0, INT_MAX);
             break;
         }
-        case ObjAtCoordType::Node: { // if node port already in use in this direction don't update
+        case ObjAtCoordType::Node: { // if node port already in use in this direction don't
+                                     // update
             if (!block.conNet.getClosNetRef(PortRef{std::get<Ref<Node>>(conStartObjVar),
-                                                    static_cast<std::size_t>(vecToDir(diff))})) {
-                conEndPos = conStartPos + diff;
+                                                    static_cast<std::size_t>(vecToDir(diff)),
+                                                    PortType::node})) {
+                newEndProp = conStartPos + diff;
+            } else {
+                newEndProp = conEndPos; // else don't update
             }
-            break; // TODO maybe change kinda klunky atm... even more so for con
+            break; // TODO maybe change kinda klunky atm... expecially for con
         }
         case ObjAtCoordType::Con: {
             Direction dir = block.getPort(std::get<Connection>(conStartObjVar).portRef1).portDir;
             if (dot(diff, dirToVec(dir)) == 0) { // if not in connection direction update
-                conEndPos = conStartPos + diff;
+                newEndProp = conStartPos + diff;
+            } else { 
+                newEndProp = conEndPos; // else don't update
             }
-            break; // else don't update
-        }
-        default:
-            conEndPos = conStartPos + diff;
             break;
         }
+        case ObjAtCoordType::Empty: {
+            newEndProp = conStartPos + diff;
+            break;
+        }
+        default:
+            throw std::logic_error("Not implemented yet LMAO");
+            break;
+        }
+
+        if (!checkPropEndPosLegal(newEndProp)) { // if new position illegal
+            conEndLegal = false;
+            break;
+        }
+        conEndLegal  = true;
+        conEndPos    = newEndProp;
         conEndObjVar = whatIsAtCoord(conEndPos);
-        checkConEndLegal();
-        // if network component highlight network
-        switch (typeOf(conEndObjVar)) {
+        switch (typeOf(conEndObjVar)) { // if network component find closednet
         case ObjAtCoordType::Node: {
             conEndCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conEndObjVar));
             break;
@@ -179,9 +192,11 @@ void Editor::frame(const sf::Vector2f& mousePos) {
             break;
         }
         default:
-            conEndCloNet.reset();
+            break;
         }
-
+        if (conStartCloNet && conEndCloNet && conStartCloNet.value() == conEndCloNet.value()) {
+            ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
+        }
         break;
     }
     }

@@ -30,10 +30,10 @@ inline bool isVecHoriVert(const sf::Vector2i& vec) { return ((vec.x != 0) != (ve
 
 inline int dot(const sf::Vector2i& a, const sf::Vector2i& b) { return a.x * b.x + a.y * b.y; }
 
-inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {
-    assert(isVecHoriVert(vec));
-    return dot(vec, dirToVec(dir)) > 0; // if dot prouct > 0 then must be in same dir
-}
+// inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {
+//     assert(isVecHoriVert(vec));
+//     return dot(vec, dirToVec(dir)) > 0; // if dot prouct > 0 then must be in same dir
+// }
 
 inline Direction vecToDir(const sf::Vector2i& vec) {
     assert(isVecHoriVert(vec));

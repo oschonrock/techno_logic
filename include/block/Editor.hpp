@@ -36,11 +36,13 @@ inline bool isValConTarget(const ObjAtCoordVar& ref) {
 
 class Editor {
   private:
-    ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord);
+    ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord) const;
     bool          collisionCheck(const Connection& connection, const sf::Vector2i& coord) const;
-    void          checkConEndLegal();
+    bool          checkPropEndPosLegal(const sf::Vector2i& pos) const;
+
     [[nodiscard]] PortRef makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
+    void                  splitCon(const Connection& con, Ref<Node> node);
 
   public:
     Editor(Block& block_) : block(block_) {}
@@ -59,6 +61,6 @@ class Editor {
     bool                          conEndLegal;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const;
-    void event(const sf::Event& event, const sf::Vector2f& mousePos);
-    void frame(const sf::Vector2f& mousePos);
+    void         event(const sf::Event& event, const sf::Vector2f& mousePos);
+    void         frame(const sf::Vector2f& mousePos);
 };
