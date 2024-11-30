@@ -14,30 +14,9 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) {
     return {};
 }
 
-PortInst& Editor::getPort(const PortRef& port) {
-    switch (typeOf(port.ref)) {
-    case PortObjType::Node:
-        return block.nodes[std::get<Ref<Node>>(port.ref)].ports[port.portNum];
-    case PortObjType::Gate:
-        return block.gates[std::get<Ref<Gate>>(port.ref)].ports[port.portNum];
-    case PortObjType::BlockInst:
-        return block.blockInstances[std::get<Ref<BlockInst>>(port.ref)].ports[port.portNum];
-    }
-}
-const PortInst& Editor::getPort(const PortRef& port) const {
-    switch (typeOf(port.ref)) {
-    case PortObjType::Node:
-        return block.nodes[std::get<Ref<Node>>(port.ref)].ports[port.portNum];
-    case PortObjType::Gate:
-        return block.gates[std::get<Ref<Gate>>(port.ref)].ports[port.portNum];
-    case PortObjType::BlockInst:
-        return block.blockInstances[std::get<Ref<BlockInst>>(port.ref)].ports[port.portNum];
-    }
-}
-
 // TODO potential problem when there are two collisions with connection
 bool Editor::collisionCheck(const Connection& con, const sf::Vector2i& coord) const {
-    return isVecBetween(coord, getPort(con.portRef1).portPos, getPort(con.portRef2).portPos);
+    return isVecBetween(coord, block.getPort(con.portRef1).portPos, block.getPort(con.portRef2).portPos);
 }
 
 void Editor::checkConLegal() {
@@ -151,7 +130,7 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         }
         switch (typeOf(conStartObjVar)) {
         case ObjAtCoordType::Port: {
-            const PortInst& port{getPort(std::get<PortRef>(conStartObjVar))};
+            const PortInst& port{block.getPort(std::get<PortRef>(conStartObjVar))};
             conEndPos =
                 dirToVec(port.portDir) * std::clamp(dot(dirToVec(port.portDir), diff), 0, INT_MAX);
             break;

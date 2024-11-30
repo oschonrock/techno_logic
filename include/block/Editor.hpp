@@ -32,9 +32,6 @@ class Editor {
   public:
     Editor(Block& block_) : block(block_) {}
 
-    PortInst&       getPort(const PortRef& port);
-    const PortInst& getPort(const PortRef& port) const;
-
     enum struct BlockState { Idle, Connecting };
     BlockState state = BlockState::Idle;
 
