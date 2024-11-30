@@ -32,7 +32,7 @@ bool Editor::collisionCheck(const Connection& con, const sf::Vector2i& coord) co
 }
 
 void Editor::checkConEndLegal() {
-    conEndLegal = isConnectable(conEndObjVar);
+    conEndLegal = isValConTarget(conEndObjVar);
     if (conStartPos == conEndPos)
         conEndLegal = false;
 
@@ -44,6 +44,8 @@ void Editor::checkConEndLegal() {
     }
 }
 
+// Returns ref to port at location
+// if there isn't one creates one according to what's currently there;
 [[nodiscard]] PortRef Editor::makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
                                              Direction dirIntoPort) {
     switch (typeOf(var)) {
@@ -56,14 +58,14 @@ void Editor::checkConEndLegal() {
         break;
     }
     case ObjAtCoordType::Port: { // return portRef
-        break;
+        return std::get<PortRef>(var);
     }
-    case ObjAtCoordType::Node: { // return portRef
+    case ObjAtCoordType::Node: {
         Ref<Node> node = std::get<Ref<Node>>(var);
         return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort))};
     }
     default:
-        throw std::logic_error("Cannot make connection to location which isn't connectable");
+        throw std::logic_error("Cannot make connection to location which isn't viable");
     }
 }
 
@@ -72,15 +74,17 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
             std::clamp(static_cast<int>(std::round(pos.y)), 0, static_cast<int>(block.size - 1))};
 }
 
-bool Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
+// Called every event
+// Primarily responsible for excectution of actions
+// E.g. create destroy objects
+void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
     if (event.type == sf::Event::MouseButtonReleased &&
         event.mouseButton.button == sf::Mouse::Left) {
         auto clickedObj = whatIsAtCoord(mouseGridPos);
         switch (state) {
         case BlockState::Idle: {             // new connection started
-            if (isConnectable(clickedObj)) { // connectable
-                //
+            if (isValConTarget(clickedObj)) { // connectable
                 state = BlockState::Connecting;
                 // reset end... it will contain old data
                 conEndPos    = conStartPos;
@@ -105,9 +109,10 @@ bool Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
         }
         }
     }
-    return false;
 }
 
+// Called every frame
+// Responsible for ensuring correct state of "con" variables according to block state and inputs
 void Editor::frame(const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
     switch (state) {
@@ -115,7 +120,7 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         conStartPos    = mouseGridPos;
         conStartObjVar = whatIsAtCoord(conStartPos);
         // if network component highlight network
-        switch (typeOf(conStartObjVar)) {
+        switch (typeOf(conStartObjVar)) { // maybe make own function
         case ObjAtCoordType::Node: {
             conStartCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conStartObjVar));
             break;

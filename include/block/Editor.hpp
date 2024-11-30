@@ -22,7 +22,7 @@ inline static constexpr std::array<std::string, 7> ObjAtCoordStrings{
 
 inline ObjAtCoordType typeOf(const ObjAtCoordVar& ref) { return ObjAtCoordType{ref.index()}; }
 
-inline bool isConnectable(const ObjAtCoordVar& ref) {
+inline bool isValConTarget(const ObjAtCoordVar& ref) {
     switch (ObjAtCoordType(ref.index())) {
     case ObjAtCoordType::Empty:
     case ObjAtCoordType::Con:
@@ -59,7 +59,6 @@ class Editor {
     bool                          conEndLegal;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const;
-    // returns wether it wants to capture the event (not allow other things to interpret it)
-    bool event(const sf::Event& event, const sf::Vector2f& mousePos);
+    void event(const sf::Event& event, const sf::Vector2f& mousePos);
     void frame(const sf::Vector2f& mousePos);
 };

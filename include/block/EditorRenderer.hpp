@@ -256,6 +256,10 @@ class EditorRenderer {
     void draw(const sf::Vector2f& mousePos) {
         sf::Vector2i mouseCoord = editor.snapToGrid(mousePos);
 
+        // basics
+        window.draw(name);
+        window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
+
         // DEBUG
         debugCon.reset();
         debugNode.reset();
@@ -264,9 +268,11 @@ class EditorRenderer {
             debug(mousePos);
         }
 
-        window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
-
-        if (editor.state == Editor::BlockState::Connecting) { // draw new connection
+        switch (editor.state) {
+        case Editor::BlockState::Idle:
+            coordHl.setPosition(sf::Vector2f(mouseCoord));
+            window.draw(coordHl);
+        case Editor::BlockState::Connecting:
             drawSingleLine(editor.conStartPos, editor.conEndPos, newConColour);
             switch (typeOf(editor.conStartObjVar)) {
             case ObjAtCoordType::Con:
@@ -277,6 +283,7 @@ class EditorRenderer {
                 break;
             }
         }
+
         // draw connections
         std::vector<sf::Vertex> conVerts;
         for (const auto& net: block.conNet.nets) {
@@ -317,9 +324,5 @@ class EditorRenderer {
             drawSingleLine(block.getPort(debugCon->first).portPos,
                            block.getPort(debugCon->second).portPos, debugConColour);
         }
-
-        coordHl.setPosition(sf::Vector2f(mouseCoord));
-        window.draw(coordHl);
-        window.draw(name);
     }
 };
