@@ -6,26 +6,39 @@
 
 #include "Block.hpp"
 
-using ObjAtCoordVar =
-    std::variant<std::monostate, Connection, PortRef, Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
+using ObjAtCoordVar = std::variant<std::monostate, Connection, std::pair<Connection, Connection>,
+                                   PortRef, Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
 enum struct ObjAtCoordType : std::size_t {
-    Empty = 0,
-    Con   = 1,
-    Port  = 2,
-    Node  = 3,
-    Gate  = 4,
-    Block = 5
+    Empty    = 0,
+    Con      = 1,
+    ConCross = 2,
+    Port     = 3,
+    Node     = 4,
+    Gate     = 5,
+    Block    = 6
 };
-inline static constexpr std::array<std::string, 6> ObjAtCoordStrings{
-    "empty", "connection", "port", "node", "gate", "block"}; // for debugging
+inline static constexpr std::array<std::string, 7> ObjAtCoordStrings{
+    "empty", "connection", "conn crossing", "port", "node", "gate", "block"}; // for debugging
 
 inline ObjAtCoordType typeOf(const ObjAtCoordVar& ref) { return ObjAtCoordType{ref.index()}; }
+
+inline bool isConnectable(const ObjAtCoordVar& ref) {
+    switch (ObjAtCoordType(ref.index())) {
+    case ObjAtCoordType::Empty:
+    case ObjAtCoordType::Con:
+    case ObjAtCoordType::Port:
+    case ObjAtCoordType::Node:
+        return true;
+    default:
+        return false;
+    }
+}
 
 class Editor {
   private:
     ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord);
     bool          collisionCheck(const Connection& connection, const sf::Vector2i& coord) const;
-    void          checkConLegal();
+    void          checkConEndLegal();
     [[nodiscard]] PortRef makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
 

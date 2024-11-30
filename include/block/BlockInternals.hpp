@@ -60,7 +60,6 @@ using PortObjRef = std::variant<Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
 enum struct PortObjType : std::size_t { Node = 0, Gate = 1, BlockInst = 2 };
 static constexpr std::array<std::string, 3> PortObjRefStrings{"node", "gate", "block"};
 
-
 class PortRef {
   public:
     PortObjRef  ref;
@@ -193,48 +192,35 @@ class ConnectionNetwork {
   public:
     StableVector<ClosedNet> nets{};
 
-    void insert(const Connection& con, bool isNewClosNet) {
-        if (isNewClosNet) {
+    void insert(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
+                const std::optional<Ref<ClosedNet>>& net2) {
+        if (!net1 && !net2) { // make new closedNet
             std::cout << "made new closed network \n";
-            auto netRef = nets.insert(ClosedNet{}); // make new closedNet
+            auto netRef = nets.insert(ClosedNet{});
             nets[netRef].insert(con);
             return;
         }
 
-        if (typeOf(con.portRef1) == PortObjType::Node && // conecting two nodes
-            typeOf(con.portRef2) == PortObjType::Node) {
-            std::optional<Ref<ClosedNet>> net1 =
-                getClosNetRef(std::get<Ref<Node>>(con.portRef1.ref));
-            std::optional<Ref<ClosedNet>> net2 =
-                getClosNetRef(std::get<Ref<Node>>(con.portRef2.ref));
-            if (net1 && net2) {
-                auto net1Ref = net1.value();
-                auto net2Ref = net2.value();
-                if (net1Ref == net2Ref) {
-                    nets[net1Ref].insert(con);
-                    std::cout << "made loop within closed networks \n";
-                    return;
-                } else {
-                    std::cout << "connected two closed networks \n";
-                    if (nets[net1Ref].getSize() < nets[net2Ref].getSize())
-                        std::swap(net1Ref, net2Ref);
-                    // net1 is now the bigger of the two
-                    nets[net1Ref] += nets[net2Ref];
-                    nets.erase(net2Ref);
-                    nets[net1Ref].insert(con);
-                    return;
-                }
+        if (net1 && net2) { // connecting two existing networks
+            auto net1Ref = net1.value();
+            auto net2Ref = net2.value();
+            if (net1Ref == net2Ref) {
+                std::cout << "made loop within closed network \n";
+                nets[net1Ref].insert(con);
+                return;
+            } else {
+                std::cout << "connected two closed networks \n";
+                if (nets[net1Ref].getSize() < nets[net2Ref].getSize()) std::swap(net1Ref, net2Ref);
+                // net1 is now the bigger of the two
+                nets[net1Ref] += nets[net2Ref];
+                nets.erase(net2Ref);
+                nets[net1Ref].insert(con);
+                return;
             }
-            // extending net with new free node
-            std::cout << "extending net with new free node \n";
-            nets[net1 ? net1.value() : net2.value()].insert(con);
-            return;
         }
-
-        // connecting exisitng node and obj
-        const PortRef& nodePort =
-            typeOf(con.portRef1) == PortObjType::Node ? con.portRef1 : con.portRef2;
-        nets[getClosNetRef(nodePort).value()].insert(con);
+        std::cout << "extending network \n";
+        nets[net1 ? net1.value() : net2.value()].insert(con);
+        return;
     }
 
     void splitCon(const Connection& con, const Ref<Node> node);

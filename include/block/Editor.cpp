@@ -3,30 +3,41 @@
 #include <imgui.h>
 
 ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) {
+    // check for nodes
     for (const auto& node: block.nodes) {
-        if (coord == node.obj.pos) return node.ind; // check for nodes
+        if (coord == node.obj.pos) return node.ind;
     }
-    // for (const auto& net: conNetworks) {
-    //     for (const auto& con: net.net) {
-    //         if (con.collisionCheck(*this, coord)) return con; // check connections
-    //     }
-    // }
+    // check connections
+    std::vector<Connection> cons;
+    for (const auto& net: block.conNet.nets) {
+        for (const auto& portPair: net.obj.getMap()) {
+            Connection con(portPair.first, portPair.second);
+            if (collisionCheck(con, coord)) cons.push_back(con);
+        }
+    }
+    if (cons.size() > 2)
+        throw std::logic_error("Should never be more than 2 connections overlapping");
+    else if (cons.size() == 2) {
+        return std::make_pair(cons[0], cons[0]);
+    } else if (cons.size() == 1) {
+        return cons[0];
+    }
+
     return {};
 }
 
-// TODO potential problem when there are two collisions with connection
 bool Editor::collisionCheck(const Connection& con, const sf::Vector2i& coord) const {
-    return isVecBetween(coord, block.getPort(con.portRef1).portPos, block.getPort(con.portRef2).portPos);
+    return isVecBetween(coord, block.getPort(con.portRef1).portPos,
+                        block.getPort(con.portRef2).portPos);
 }
 
-void Editor::checkConLegal() {
-    conEndLegal = typeOf(conEndObjVar) <= ObjAtCoordType::Node;
+void Editor::checkConEndLegal() {
+    conEndLegal = isConnectable(conEndObjVar);
     if (conStartPos == conEndPos)
         conEndLegal = false;
 
-    else if (conStartCloNet && conEndCloNet &&
-             conStartCloNet.value() == conEndCloNet.value()) { // recomendation
-        ImGui::SetTooltip("Connection proposes loop");
+    else if (conStartCloNet && conEndCloNet && conStartCloNet.value() == conEndCloNet.value()) {
+        ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
     }
     if (!conEndLegal) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
@@ -52,7 +63,7 @@ void Editor::checkConLegal() {
         return {node, static_cast<std::size_t>(reverseDirection(dirIntoPort))};
     }
     default:
-        throw std::logic_error("Cannot make connection to location which isn't");
+        throw std::logic_error("Cannot make connection to location which isn't connectable");
     }
 }
 
@@ -67,8 +78,8 @@ bool Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
         event.mouseButton.button == sf::Mouse::Left) {
         auto clickedObj = whatIsAtCoord(mouseGridPos);
         switch (state) {
-        case BlockState::Idle: {                              // new connection started
-            if (typeOf(clickedObj) <= ObjAtCoordType::Node) { // connectable
+        case BlockState::Idle: {             // new connection started
+            if (isConnectable(clickedObj)) { // connectable
                 //
                 state = BlockState::Connecting;
                 // reset end... it will contain old data
@@ -87,12 +98,9 @@ bool Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
             PortRef endPort =
                 makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
 
-            // MAKING NEW NETWORK
-            bool isNewClosNet = (!conStartCloNet && !conEndCloNet);
-
+            block.conNet.insert({startPort, endPort}, conStartCloNet, conEndCloNet);
             state = BlockState::Idle;
             conEndCloNet.reset();
-            block.conNet.insert({startPort, endPort}, isNewClosNet);
             break;
         }
         }
@@ -135,20 +143,26 @@ void Editor::frame(const sf::Vector2f& mousePos) {
                 dirToVec(port.portDir) * std::clamp(dot(dirToVec(port.portDir), diff), 0, INT_MAX);
             break;
         }
-        case ObjAtCoordType::Node: { // if node port already in use in this direction use old
-            if (block.conNet.getClosNetRef(PortRef{std::get<Ref<Node>>(conStartObjVar),
-                                                   static_cast<std::size_t>(vecToDir(diff))})) {
-                break;
-            } // else default
-            conEndPos = conStartPos + diff;
-            break;
+        case ObjAtCoordType::Node: { // if node port already in use in this direction don't update
+            if (!block.conNet.getClosNetRef(PortRef{std::get<Ref<Node>>(conStartObjVar),
+                                                    static_cast<std::size_t>(vecToDir(diff))})) {
+                conEndPos = conStartPos + diff;
+            }
+            break; // TODO maybe change kinda klunky atm... even more so for con
+        }
+        case ObjAtCoordType::Con: {
+            Direction dir = block.getPort(std::get<Connection>(conStartObjVar).portRef1).portDir;
+            if (dot(diff, dirToVec(dir)) == 0) { // if not in connection direction update
+                conEndPos = conStartPos + diff;
+            }
+            break; // else don't update
         }
         default:
             conEndPos = conStartPos + diff;
             break;
         }
         conEndObjVar = whatIsAtCoord(conEndPos);
-        checkConLegal();
+        checkConEndLegal();
         // if network component highlight network
         switch (typeOf(conEndObjVar)) {
         case ObjAtCoordType::Node: {
