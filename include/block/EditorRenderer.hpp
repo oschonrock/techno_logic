@@ -130,6 +130,7 @@ class EditorRenderer {
             moveStatus = MoveStatus::idle;
             return moveStatus == MoveStatus::moveConfirmed; // capture release if move confirmed
         }
+        return false;
     }
 
     // called every visual frame

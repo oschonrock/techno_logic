@@ -163,7 +163,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             int         bestDist = std::clamp(dot(port.portDir, diff), 0, INT_MAX);
             newEndProp           = conStartPos + (dirToVec(port.portDir) * bestDist);
         }
-        case ObjAtCoordType::Node: { // find best AVAILABLE direction
+        case ObjAtCoordType::Node: { // TODO not working should find best AVAILABLE direction
             const auto& nodeRef  = std::get<Ref<Node>>(conStartObjVar);
             const auto& node     = block.nodes[nodeRef];
             auto        bestPort = std::max_element(
