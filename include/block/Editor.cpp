@@ -26,11 +26,26 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) const {
     return {};
 }
 
-bool Editor::checkPropEndPosLegal(const sf::Vector2i& propPos) const {
-    if (conStartPos == propPos) return false;
-    auto propObj = whatIsAtCoord(propPos);
-    if (!isValConTarget(propObj)) {
+// checks if pos is a legal final target for conccection
+bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
+    if (conStartPos == conEndPos) return true; // no-op case
+    auto obj = whatIsAtCoord(end);
+    if (!isCoordConType(obj)) {
         ImGui::SetTooltip("Target obj invalid");
+        return false;
+    }
+    return true;
+}
+
+bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
+    auto obj = whatIsAtCoord(start);
+    if (!isCoordConType(obj)) {
+        ImGui::SetTooltip("Target obj invalid");
+        return false;
+    }
+    if (typeOf(obj) == ObjAtCoordType::Node &&
+        block.conNet.getNodeConCount(std::get<Ref<Node>>(obj)) == 4) {
+        ImGui::SetTooltip("Node already has 4 connections");
         return false;
     }
     return true;
@@ -77,9 +92,11 @@ void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
         event.mouseButton.button == sf::Mouse::Left) {
         auto clickedObj = whatIsAtCoord(mouseGridPos);
         switch (state) {
-        case BlockState::Idle: {              // new connection started
-            if (isValConTarget(clickedObj)) { // connectable
-                state = BlockState::Connecting;
+        case EditorState::Idle: { // new connection started
+            if (!conStartLegal) break;
+
+            if (isCoordConType(clickedObj)) { // connectable
+                state = EditorState::Connecting;
                 // reset end... it will contain old data
                 conEndPos    = conStartPos;
                 conEndObjVar = conStartObjVar;
@@ -88,8 +105,13 @@ void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
             }
             break;
         }
-        case BlockState::Connecting: { // connection finished
+        case EditorState::Connecting: { // connection finished
             if (!conEndLegal) break;
+            if (conEndPos == conStartPos) { // no move click is reset
+                state = EditorState::Idle;
+                conEndCloNet.reset();
+                break;
+            }
 
             PortRef startPort =
                 makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
@@ -97,7 +119,7 @@ void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
                 makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
 
             block.conNet.insert({startPort, endPort}, conStartCloNet, conEndCloNet);
-            state = BlockState::Idle;
+            state = EditorState::Idle;
             conEndCloNet.reset();
             break;
         }
@@ -109,12 +131,14 @@ void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
 // Responsible for ensuring correct state of "con" variables according to block state and inputs
 void Editor::frame(const sf::Vector2f& mousePos) {
     sf::Vector2i mouseGridPos = snapToGrid(mousePos);
+    if (conStartPos == sf::Vector2i(-1, -1)) conStartPos = mouseGridPos; // first frame setup
     switch (state) {
-    case BlockState::Idle: {
+    case EditorState::Idle: {
         conStartPos    = mouseGridPos;
         conStartObjVar = whatIsAtCoord(conStartPos);
+        conStartLegal  = isPosLegalStart(conStartPos);
         // if network component highlight network
-        switch (typeOf(conStartObjVar)) { // maybe make own function
+        switch (typeOf(conStartObjVar)) { // TODO maybe make own function
         case ObjAtCoordType::Node: {
             conStartCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conStartObjVar));
             break;
@@ -129,15 +153,10 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         }
         break;
     }
-    case BlockState::Connecting: {
+    case EditorState::Connecting: {
         sf::Vector2i diff       = mouseGridPos - conStartPos;
         sf::Vector2i newEndProp = conStartPos + snapToAxis(diff); // default
         conEndCloNet.reset();
-
-        if (diff == sf::Vector2i{}) { // havent moved from start maybe not nescesarry anymore
-            conEndLegal = false;
-            break;
-        }
 
         // work out proposed end point based on state
         switch (typeOf(conStartObjVar)) { // from 1, up to dot(diff, portDir)
@@ -175,7 +194,7 @@ void Editor::frame(const sf::Vector2f& mousePos) {
             break;
         }
 
-        if (!checkPropEndPosLegal(newEndProp)) { // if new position illegal
+        if (!isPosLegalEnd(newEndProp)) { // if new position illegal
             conEndLegal = false;
             break;
         }

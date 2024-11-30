@@ -11,19 +11,21 @@
 #include "Editor.hpp"
 
 class EditorRenderer {
-    static constexpr float        defaultViewSize    = 35;
-    static constexpr float        zoomFact           = 1.05f;
-    static constexpr float        nameScale          = 1.5f;
-    static constexpr float        crossSize          = 0.1f;
-    static constexpr float        hlRad              = 0.1f;
-    static constexpr float        nodeRad            = 0.1f;
+    static constexpr float        defaultViewSize = 35;
+    static constexpr float        zoomFact        = 1.05f;
+    static constexpr float        nameScale       = 1.5f;
+    static constexpr float        crossSize       = 0.1f;
+    static constexpr float        nodeRad         = 0.1f;
+    static constexpr float        hlRad           = 0.1f;
+    inline static const sf::Color crossColour{255, 255, 255, 70};
+    inline static const sf::Color indicatorColour{255, 255, 255, 100};
     inline static const sf::Color nodeColour         = sf::Color::White;
     inline static const sf::Color conColour          = sf::Color::White;
     inline static const sf::Color newConColour       = sf::Color::Blue;
     inline static const sf::Color highlightConColour = sf::Color::Green;
+    inline static const sf::Color errorColour        = sf::Color::Red;
     inline static const sf::Color debugConColour     = sf::Color::Magenta;
     inline static const sf::Color debugNodeColour    = sf::Color::Yellow;
-    inline static const sf::Color crossCol{255, 255, 255, 70};
 
     const sf::Font& font;
 
@@ -35,7 +37,7 @@ class EditorRenderer {
     sf::View          view;
 
     std::vector<sf::Vertex> gridVertecies;
-    sf::CircleShape         coordHl{hlRad};
+    sf::CircleShape         mouseIndicator{hlRad};
     sf::Text                name;
 
     enum struct MoveStatus : std::size_t { idle = 0, moveStarted = 1, moveConfirmed = 2 };
@@ -68,10 +70,10 @@ class EditorRenderer {
             for (std::size_t y = 0; y < block.size; ++y) {
                 std::size_t  index = (x + y * block.size) * 4;
                 sf::Vector2f pos{static_cast<float>(x), static_cast<float>(y)};
-                gridVertecies[index]     = {pos - sf::Vector2f{-crossSize, 0.0f}, crossCol};
-                gridVertecies[index + 1] = {pos - sf::Vector2f{crossSize, 0.0f}, crossCol};
-                gridVertecies[index + 2] = {pos - sf::Vector2f{0.0f, -crossSize}, crossCol};
-                gridVertecies[index + 3] = {pos - sf::Vector2f{0.0f, crossSize}, crossCol};
+                gridVertecies[index]     = {pos - sf::Vector2f{-crossSize, 0.0f}, crossColour};
+                gridVertecies[index + 1] = {pos - sf::Vector2f{crossSize, 0.0f}, crossColour};
+                gridVertecies[index + 2] = {pos - sf::Vector2f{0.0f, -crossSize}, crossColour};
+                gridVertecies[index + 3] = {pos - sf::Vector2f{0.0f, crossSize}, crossColour};
             }
         }
 
@@ -92,8 +94,7 @@ class EditorRenderer {
         gridVertecies[gridVertecies.size() - 1] = bl;
 
         // set up highlighter
-        coordHl.setFillColor(crossCol);
-        coordHl.setOrigin({hlRad, hlRad});
+        mouseIndicator.setOrigin({hlRad, hlRad});
 
         // set up name
         name.setScale(sf::Vector2f{1.0f, 1.0f} *
@@ -171,10 +172,10 @@ class EditorRenderer {
         if (ImGui::TreeNode("Current Connection")) {
             std::string startHover = ObjAtCoordStrings[editor.conStartObjVar.index()];
             switch (editor.state) {
-            case Editor::BlockState::Idle:
+            case Editor::EditorState::Idle:
                 ImGui::Text("Hovering %s", startHover.c_str());
                 break;
-            case Editor::BlockState::Connecting:
+            case Editor::EditorState::Connecting:
                 ImGui::Text("Start connected to %s", startHover.c_str());
                 std::string endHover = ObjAtCoordStrings[editor.conEndObjVar.index()];
                 ImGui::Text("Hovering %s", endHover.c_str());
@@ -271,34 +272,16 @@ class EditorRenderer {
             debug(mousePos);
         }
 
-        switch (editor.state) {
-        case Editor::BlockState::Idle:
-            coordHl.setPosition(sf::Vector2f(mouseCoord));
-            window.draw(coordHl);
-            break;
-        case Editor::BlockState::Connecting:
-            if (editor.conEndLegal) {
-                drawSingleLine(editor.conStartPos, editor.conEndPos, newConColour);
-            }
-            switch (typeOf(editor.conStartObjVar)) {
-            case ObjAtCoordType::Con:
-            case ObjAtCoordType::Empty: {
-                drawNode(editor.conStartPos, 1.2f * nodeRad, newConColour);
-            }
-            default: // errors
-                break;
-            }
-        }
-
         // draw connections
         std::vector<sf::Vertex> conVerts;
         for (const auto& net: block.conNet.nets) {
             sf::Color col = conColour;
-            if ((editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
-                (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind)) {
-                col = highlightConColour;                       // editor hover color
-            } else if (debugNet && debugNet.value() == net.ind) // debug color
+            if (debugNet && debugNet.value() == net.ind) // sneaky debug overlay... rest down
                 col = debugConColour;
+            else if ((editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
+                     (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind)) {
+                col = highlightConColour; // editor hover color
+            }
 
             for (const auto& portPair: net.obj.getMap()) {
                 conVerts.emplace_back(sf::Vector2f(block.getPort(portPair.first).portPos), col);
@@ -313,6 +296,31 @@ class EditorRenderer {
                 drawNode(node.obj.pos, nodeRad, nodeColour);
             };
         }
+
+        // editor state based gui
+        switch (editor.state) {
+        case Editor::EditorState::Idle:
+            mouseIndicator.setPosition(sf::Vector2f(mouseCoord));
+            mouseIndicator.setFillColor(editor.conStartLegal ? indicatorColour : errorColour);
+            window.draw(mouseIndicator);
+            break;
+        case Editor::EditorState::Connecting:
+            if (editor.conEndLegal) {
+                drawSingleLine(editor.conStartPos, editor.conEndPos,
+                               editor.conEndLegal ? newConColour : errorColour);
+            }
+            switch (typeOf(editor.conStartObjVar)) {
+            case ObjAtCoordType::Con:
+            case ObjAtCoordType::Empty: {
+                drawNode(editor.conStartPos, 1.2f * nodeRad,
+                         editor.conEndLegal ? newConColour : errorColour);
+            }
+            default: // errors
+                break;
+            }
+        }
+
+        // Debug overlays
         if (debugNet) { // draw debug nodes over top
             const auto& net = block.conNet.nets[debugNet.value()];
             for (const auto& portRef: net.getMap()) {

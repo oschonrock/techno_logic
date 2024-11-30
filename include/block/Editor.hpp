@@ -22,7 +22,7 @@ inline static constexpr std::array<std::string, 7> ObjAtCoordStrings{
 
 inline ObjAtCoordType typeOf(const ObjAtCoordVar& ref) { return ObjAtCoordType{ref.index()}; }
 
-inline bool isValConTarget(const ObjAtCoordVar& ref) {
+inline bool isCoordConType(const ObjAtCoordVar& ref) {
     switch (ObjAtCoordType(ref.index())) {
     case ObjAtCoordType::Empty:
     case ObjAtCoordType::Con:
@@ -38,7 +38,8 @@ class Editor {
   private:
     ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord) const;
     bool          collisionCheck(const Connection& connection, const sf::Vector2i& coord) const;
-    bool          checkPropEndPosLegal(const sf::Vector2i& pos) const;
+    bool          isPosLegalEnd(const sf::Vector2i& pos) const;
+    bool          isPosLegalStart(const sf::Vector2i& start) const;
 
     [[nodiscard]] PortRef makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
@@ -47,17 +48,18 @@ class Editor {
   public:
     Editor(Block& block_) : block(block_) {}
 
-    enum struct BlockState { Idle, Connecting };
-    BlockState state = BlockState::Idle;
+    enum struct EditorState { Idle, Connecting };
+    EditorState state = EditorState::Idle;
 
     Block& block;
 
-    sf::Vector2i                  conStartPos;
+    sf::Vector2i                  conStartPos{-1, -1};
     sf::Vector2i                  conEndPos;
     ObjAtCoordVar                 conStartObjVar;
     ObjAtCoordVar                 conEndObjVar;
     std::optional<Ref<ClosedNet>> conStartCloNet;
     std::optional<Ref<ClosedNet>> conEndCloNet;
+    bool                          conStartLegal;
     bool                          conEndLegal;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const;
