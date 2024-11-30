@@ -3,13 +3,14 @@
 #include <cmath>
 
 #include <SFML/Graphics/CircleShape.hpp>
-#include <SFML/Graphics/Font.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Text.hpp>
-#include <SFML/Window/Event.hpp>
 #include <imgui.h>
 
 #include "Editor.hpp"
 
+// editor renderer contains const& to editor and is only responsible for displaying its internal
+// state
 class EditorRenderer {
     static constexpr float        defaultViewSize = 35;
     static constexpr float        zoomFact        = 1.05f;
@@ -31,7 +32,7 @@ class EditorRenderer {
 
     float vsScale;
 
-    Editor            editor;
+    const Editor&     editor;
     const Block&      block;
     sf::RenderWindow& window;
     sf::View          view;
@@ -62,8 +63,8 @@ class EditorRenderer {
     }
 
   public:
-    EditorRenderer(Block& block_, sf::RenderWindow& window_, const sf::Font& font_)
-        : font(font_), editor(block_), block(block_), window(window_),
+    EditorRenderer(const Editor& editor_, sf::RenderWindow& window_, const sf::Font& font_)
+        : font(font_), editor(editor_), block(editor.block), window(window_),
           gridVertecies(block.size * block.size * 4 + 8), name(block.name, font) {
         // make grid
         for (std::size_t x = 0; x < block.size; ++x) {
@@ -105,28 +106,29 @@ class EditorRenderer {
         setViewDefault();
     }
 
-    void event(const sf::Event& event, const sf::Vector2i& mousePixPos) {
+    // returns if it wants to capture event
+    bool event(const sf::Event& event, const sf::Vector2i& mousePixPos) {
         sf::Vector2f mousePos = window.mapPixelToCoords(mousePixPos);
-        if (ImGui::GetIO().WantCaptureMouse) return;
+        if (ImGui::GetIO().WantCaptureMouse) return false;
         if (event.type == sf::Event::MouseWheelMoved) {
             float        zoom = static_cast<float>(std::pow(zoomFact, -event.mouseWheel.delta));
             sf::Vector2f diff = mousePos - view.getCenter();
             view.zoom(zoom);
             view.move(diff * (1 - zoom));
             window.setView(view);
+            return true;
         }
         if (event.type == sf::Event::MouseButtonPressed &&
             event.mouseButton.button == sf::Mouse::Left) {
             moveStatus       = MoveStatus::moveStarted;
             mousePosOriginal = mousePixPos;
             mousePosLast     = mousePos;
+            return true;
         }
         if (event.type == sf::Event::MouseButtonReleased &&
             event.mouseButton.button == sf::Mouse::Left) {
-            if (moveStatus != MoveStatus::moveConfirmed) {
-                editor.event(event, mousePos);
-            }
             moveStatus = MoveStatus::idle;
+            return moveStatus == MoveStatus::moveConfirmed; // capture release if move confirmed
         }
     }
 
@@ -142,8 +144,14 @@ class EditorRenderer {
                 0.03f)
                 moveStatus = MoveStatus::moveConfirmed;
         }
+        // DEBUG
+        debugCon.reset();
+        debugNode.reset();
+        debugNet.reset();
+        if (debugEnabled) {
+            debug(mousePos);
+        }
         draw(mousePos);
-        editor.frame(mousePos);
     }
 
   private:
@@ -173,15 +181,18 @@ class EditorRenderer {
             std::string startHover = ObjAtCoordStrings[editor.conStartObjVar.index()];
             switch (editor.state) {
             case Editor::EditorState::Idle:
-                ImGui::Text("Hovering %s", startHover.c_str());
+                ImGui::Text("Hovering %s at pos (%d, %d)", startHover.c_str(), editor.conStartPos.x,
+                            editor.conStartPos.y);
+                ImGui::Text("Proposed start point is %slegal", editor.conStartLegal ? "" : "il");
                 break;
             case Editor::EditorState::Connecting:
-                ImGui::Text("Start connected to %s", startHover.c_str());
                 std::string endHover = ObjAtCoordStrings[editor.conEndObjVar.index()];
+                ImGui::Text("Start connected to %s at pos (%d, %d)", startHover.c_str(),
+                            editor.conStartPos.x, editor.conStartPos.y);
                 ImGui::Text("Hovering %s", endHover.c_str());
+                ImGui::Text("Proposed end point is %slegal", editor.conEndLegal ? "" : "il");
                 break;
             }
-            ImGui::Text("Proposed connection %slegal", editor.conEndLegal ? "" : "il");
             ImGui::TreePop();
         }
         if (ImGui::TreeNodeEx("Networks", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -263,14 +274,6 @@ class EditorRenderer {
         // basics
         window.draw(name);
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
-
-        // DEBUG
-        debugCon.reset();
-        debugNode.reset();
-        debugNet.reset();
-        if (debugEnabled) {
-            debug(mousePos);
-        }
 
         // draw connections
         std::vector<sf::Vertex> conVerts;

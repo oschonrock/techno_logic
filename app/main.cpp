@@ -23,16 +23,19 @@ int main() {
     Block block{};
     block.name        = "Example";
     block.description = "This is an example block :)";
-    EditorRenderer rend{block, window, font};
+    Editor         editor{block};
+    EditorRenderer rend{editor, window, font};
 
     sf::Clock deltaClock;
     while (window.isOpen()) {
         sf::Vector2i mousePixPos = sf::Mouse::getPosition(window);
+        sf::Vector2i mousePos    = editor.snapToGrid(window.mapPixelToCoords(mousePixPos));
 
         sf::Event event;
         while (window.pollEvent(event)) {
             ImGui::SFML::ProcessEvent(window, event);
-            rend.event(event, mousePixPos);
+            if (rend.event(event, mousePixPos)) break;
+            editor.event(event, mousePos);
             if (event.type == sf::Event::Closed) {
                 window.close();
             }
@@ -41,6 +44,7 @@ int main() {
         ImGui::SFML::Update(window, deltaClock.restart());
 
         window.clear();
+        editor.frame(mousePos); // update state
         rend.frame(mousePixPos);
         ImGui::SFML::Render(window);
         window.display();

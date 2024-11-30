@@ -2,8 +2,6 @@
 
 #include "Direction.hpp"
 #include "details/StableVector.hpp"
-#include <SFML/Graphics/RenderWindow.hpp>
-#include <vector>
 
 inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
     if (abs(vec.x) > abs(vec.y)) {

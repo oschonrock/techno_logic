@@ -1,6 +1,6 @@
-#include "Editor.hpp"
-#include <SFML/Window/Event.hpp>
 #include <imgui.h>
+
+#include "Editor.hpp"
 
 ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) const {
     // check for nodes
@@ -86,11 +86,10 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
 // Called every event
 // Primarily responsible for excectution of actions
 // E.g. create destroy objects
-void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
-    sf::Vector2i mouseGridPos = snapToGrid(mousePos);
+void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
     if (event.type == sf::Event::MouseButtonReleased &&
         event.mouseButton.button == sf::Mouse::Left) {
-        auto clickedObj = whatIsAtCoord(mouseGridPos);
+        auto clickedObj = whatIsAtCoord(mousePos);
         switch (state) {
         case EditorState::Idle: { // new connection started
             if (!conStartLegal) break;
@@ -129,12 +128,11 @@ void Editor::event(const sf::Event& event, const sf::Vector2f& mousePos) {
 
 // Called every frame
 // Responsible for ensuring correct state of "con" variables according to block state and inputs
-void Editor::frame(const sf::Vector2f& mousePos) {
-    sf::Vector2i mouseGridPos = snapToGrid(mousePos);
-    if (conStartPos == sf::Vector2i(-1, -1)) conStartPos = mouseGridPos; // first frame setup
+void Editor::frame(const sf::Vector2i& mousePos) {
+    if (conStartPos == sf::Vector2i(-1, -1)) conStartPos = mousePos; // first frame setup
     switch (state) {
     case EditorState::Idle: {
-        conStartPos    = mouseGridPos;
+        conStartPos    = mousePos;
         conStartObjVar = whatIsAtCoord(conStartPos);
         conStartLegal  = isPosLegalStart(conStartPos);
         // if network component highlight network
@@ -154,7 +152,7 @@ void Editor::frame(const sf::Vector2f& mousePos) {
         break;
     }
     case EditorState::Connecting: {
-        sf::Vector2i diff       = mouseGridPos - conStartPos;
+        sf::Vector2i diff       = mousePos - conStartPos;
         sf::Vector2i newEndProp = conStartPos + snapToAxis(diff); // default
         conEndCloNet.reset();
 
