@@ -1,9 +1,7 @@
 #include <cmath>
 
 #include "imgui-SFML.h"
-#include "imgui.h"
 
-#include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/System/Clock.hpp"
 #include "SFML/Window/Event.hpp"
 
@@ -16,7 +14,10 @@ int main() {
     }
 
     sf::VideoMode    desktop = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(desktop, "ImGui + SFML = <3", sf::Style::Fullscreen);
+    // sf::ContextSettings cont{};
+    // cont.hasFocus = true;
+    sf::RenderWindow window(desktop, "Techo Logic", sf::Style::Fullscreen);
+    window.requestFocus(); // fix windows imgui no response bug
     window.setFramerateLimit(60);
     assert(ImGui::SFML::Init(window));
 
@@ -43,6 +44,7 @@ int main() {
 
         ImGui::SFML::Update(window, deltaClock.restart());
 
+        ImGui::SetTooltip(window.hasFocus() ? "Has focue" : "No focus");
         window.clear();
         editor.frame(mousePos); // update state
         rend.frame(mousePixPos);

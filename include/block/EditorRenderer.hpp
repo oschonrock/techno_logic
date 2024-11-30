@@ -38,6 +38,7 @@ class EditorRenderer {
     sf::View          view;
 
     std::vector<sf::Vertex> gridVertecies;
+    std::vector<sf::Vertex> lineVertecies;
     sf::CircleShape         mouseIndicator{hlRad};
     sf::Text                name;
 
@@ -164,9 +165,8 @@ class EditorRenderer {
     }
 
     void drawSingleLine(const sf::Vector2i& pos1, const sf::Vector2i& pos2, const sf::Color& col) {
-        std::array<sf::Vertex, 2> line{sf::Vertex{sf::Vector2f{pos1}, col},
-                                       sf::Vertex{sf::Vector2f{pos2}, col}};
-        window.draw(line.data(), 2, sf::PrimitiveType::Lines);
+        lineVertecies.emplace_back(sf::Vector2f{pos1}, col);
+        lineVertecies.emplace_back(sf::Vector2f{pos2}, col);
     }
 
     void debug(const sf::Vector2f& mousePos) {
@@ -276,6 +276,7 @@ class EditorRenderer {
         window.draw(name);
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
 
+        lineVertecies.clear();
         // draw connections
         std::vector<sf::Vertex> conVerts;
         for (const auto& net: block.conNet.nets) {
@@ -342,5 +343,6 @@ class EditorRenderer {
             drawSingleLine(block.getPort(debugCon->first).portPos,
                            block.getPort(debugCon->second).portPos, debugConColour);
         }
+        window.draw(lineVertecies.data(), lineVertecies.size(), sf::PrimitiveType::Lines);
     }
 };
