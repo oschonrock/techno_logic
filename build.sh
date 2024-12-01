@@ -57,11 +57,10 @@ else
   fi
 fi
 
-if command -v ccache > /dev/null 2>&1
-then
-    CACHE="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
+if command -v ccache > /dev/null 2>&1; then
+    COMPILER_OPTIONS="$COMPILER_OPTIONS -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
 else
-    CACHE=""
+    echo -e '\033[0;31m'"Consider installing \`ccache\` for extra speed!"'\033[0m' 1>&2
 fi
 
 $CMAKE -S . -B $BUILD_DIR $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE 

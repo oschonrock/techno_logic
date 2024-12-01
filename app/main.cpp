@@ -14,12 +14,12 @@ int main() {
     }
 
     sf::VideoMode    desktop = sf::VideoMode::getDesktopMode();
-    // sf::ContextSettings cont{};
-    // cont.hasFocus = true;
     sf::RenderWindow window(desktop, "Techo Logic", sf::Style::Fullscreen);
-    window.requestFocus(); // fix windows imgui no response bug
     window.setFramerateLimit(60);
     assert(ImGui::SFML::Init(window));
+    // fix windows imgui no response bug
+    ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::LostFocus));
+    ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::GainedFocus));
 
     Block block{};
     block.name        = "Example";
