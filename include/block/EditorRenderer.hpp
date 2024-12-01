@@ -39,7 +39,6 @@ class EditorRenderer {
     sf::Vector2u      prevWindowSize;
 
     std::vector<sf::Vertex> gridVertecies;
-    std::vector<sf::Vertex> lineVertecies;
     sf::CircleShape         mouseIndicator{hlRad};
     sf::Text                name;
 
@@ -174,9 +173,10 @@ class EditorRenderer {
         window.draw(circ);
     }
 
-    void drawSingleLine(const sf::Vector2i& pos1, const sf::Vector2i& pos2, const sf::Color& col) {
-        lineVertecies.emplace_back(sf::Vector2f{pos1}, col);
-        lineVertecies.emplace_back(sf::Vector2f{pos2}, col);
+    void drawSingleLine(std::vector<sf::Vertex>& vertVec, const sf::Vector2i& pos1,
+                        const sf::Vector2i& pos2, const sf::Color& col) {
+        vertVec.emplace_back(sf::Vector2f{pos1}, col);
+        vertVec.emplace_back(sf::Vector2f{pos2}, col);
     }
 
     void debug(const sf::Vector2f& mousePos) {
@@ -311,7 +311,7 @@ class EditorRenderer {
             };
         }
 
-        lineVertecies.clear();
+        std::vector<sf::Vertex> lineVertecies{};
         // editor state based gui
         switch (editor.state) {
         case Editor::EditorState::Idle:
@@ -321,7 +321,7 @@ class EditorRenderer {
             break;
         case Editor::EditorState::Connecting:
             if (editor.conEndLegal) {
-                drawSingleLine(editor.conStartPos, editor.conEndPos,
+                drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos,
                                editor.conEndLegal ? newConColour : errorColour);
             }
             switch (typeOf(editor.conStartObjVar)) {
@@ -350,7 +350,7 @@ class EditorRenderer {
             drawNode(block.nodes[debugNode.value()].pos, 1.2f * nodeRad, debugNodeColour);
         }
         if (debugCon) { // draw debug con over top
-            drawSingleLine(block.getPort(debugCon->first).portPos,
+            drawSingleLine(lineVertecies, block.getPort(debugCon->first).portPos,
                            block.getPort(debugCon->second).portPos, debugConColour);
         }
         window.draw(lineVertecies.data(), lineVertecies.size(), sf::PrimitiveType::Lines);
