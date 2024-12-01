@@ -276,9 +276,8 @@ class EditorRenderer {
         window.draw(name);
         window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
 
-        lineVertecies.clear();
         // draw connections
-        std::vector<sf::Vertex> conVerts;
+        std::vector<sf::Vertex> conVerts{};
         for (const auto& net: block.conNet.nets) {
             sf::Color col = conColour;
             if (debugNet && debugNet.value() == net.ind) // sneaky debug overlay... rest down
@@ -302,6 +301,7 @@ class EditorRenderer {
             };
         }
 
+        lineVertecies.clear();
         // editor state based gui
         switch (editor.state) {
         case Editor::EditorState::Idle:

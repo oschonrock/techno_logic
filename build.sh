@@ -61,7 +61,6 @@ if command -v ccache > /dev/null 2>&1
 then
     CACHE="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
 else
-    echo -e '\033[0;31m'"Consider installing \`ccache\` for extra speed!"'\033[0m' 1>&2
     CACHE=""
 fi
 

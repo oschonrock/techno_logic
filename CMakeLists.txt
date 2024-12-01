@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.30)
 project(techno_logic LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+cmake_policy(SET CMP0168 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0168 NEW)
 
 if(PROJECT_IS_TOP_LEVEL)
     if(MSVC)
