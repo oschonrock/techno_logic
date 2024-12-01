@@ -13,8 +13,7 @@ int main() {
         throw std::runtime_error("failed to load arial.ttf");
     }
 
-    sf::VideoMode    desktop = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(desktop, "Techo Logic", sf::Style::Fullscreen);
+    sf::RenderWindow window(sf::VideoMode({1440, 1080}), "Techo Logic");
     window.setFramerateLimit(60);
     assert(ImGui::SFML::Init(window));
     // fix windows imgui no response bug
@@ -44,7 +43,6 @@ int main() {
 
         ImGui::SFML::Update(window, deltaClock.restart());
 
-        ImGui::SetTooltip(window.hasFocus() ? "Has focue" : "No focus");
         window.clear();
         editor.frame(mousePos); // update state
         rend.frame(mousePixPos);

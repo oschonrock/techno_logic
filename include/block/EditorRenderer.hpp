@@ -12,21 +12,21 @@
 // editor renderer contains const& to editor and is only responsible for displaying its internal
 // state
 class EditorRenderer {
-    static constexpr float        defaultViewSize = 35;
-    static constexpr float        zoomFact        = 1.05f;
-    static constexpr float        nameScale       = 1.5f;
-    static constexpr float        crossSize       = 0.1f;
-    static constexpr float        nodeRad         = 0.1f;
-    static constexpr float        hlRad           = 0.1f;
-    inline static const sf::Color crossColour{255, 255, 255, 70};
-    inline static const sf::Color indicatorColour{255, 255, 255, 100};
-    inline static const sf::Color nodeColour         = sf::Color::White;
-    inline static const sf::Color conColour          = sf::Color::White;
-    inline static const sf::Color newConColour       = sf::Color::Blue;
-    inline static const sf::Color highlightConColour = sf::Color::Green;
-    inline static const sf::Color errorColour        = sf::Color::Red;
-    inline static const sf::Color debugConColour     = sf::Color::Magenta;
-    inline static const sf::Color debugNodeColour    = sf::Color::Yellow;
+    static constexpr float defaultViewSize = 35;
+    static constexpr float zoomFact        = 1.05f;
+    static constexpr float nameScale       = 1.5f;
+    static constexpr float crossSize       = 0.1f;
+    static constexpr float nodeRad         = 0.1f;
+    static constexpr float hlRad           = 0.1f;
+    sf::Color              crossColour{255, 255, 255, 70};
+    sf::Color              indicatorColour{255, 255, 255, 100};
+    sf::Color              nodeColour         = sf::Color::White;
+    sf::Color              conColour          = sf::Color::White;
+    sf::Color              newConColour       = sf::Color::Blue;
+    sf::Color              highlightConColour = sf::Color::Green;
+    sf::Color              errorColour        = sf::Color::Red;
+    sf::Color              debugConColour     = sf::Color::Magenta;
+    sf::Color              debugNodeColour    = sf::Color::Yellow;
 
     const sf::Font& font;
 
@@ -36,6 +36,7 @@ class EditorRenderer {
     const Block&      block;
     sf::RenderWindow& window;
     sf::View          view;
+    sf::Vector2u      prevWindowSize;
 
     std::vector<sf::Vertex> gridVertecies;
     std::vector<sf::Vertex> lineVertecies;
@@ -61,6 +62,7 @@ class EditorRenderer {
         view.zoom(1 / vsScale);
         view.setCenter(view.getSize() / 2.0f + sf::Vector2f{-1, -1});
         window.setView(view);
+        prevWindowSize = window.getSize();
     }
 
   public:
@@ -130,6 +132,14 @@ class EditorRenderer {
             event.mouseButton.button == sf::Mouse::Left) {
             moveStatus = MoveStatus::idle;
             return moveStatus == MoveStatus::moveConfirmed; // capture release if move confirmed
+        }
+        if (event.type == sf::Event::Resized) {
+            sf::Vector2f scale(
+                static_cast<float>(event.size.width) / static_cast<float>(prevWindowSize.x),
+                static_cast<float>(event.size.height) / static_cast<float>(prevWindowSize.y));
+            view.setSize({view.getSize().x * scale.x, view.getSize().y * scale.y});
+            prevWindowSize = {event.size.width, event.size.height};
+            window.setView(view);
         }
         return false;
     }
