@@ -77,15 +77,24 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
 // If there isn't one creates one according to what's currently there;
 // Note takes var by ref and may invalidate it (in case of deleting redundant point)
 [[nodiscard]] PortRef Editor::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                             Direction dirIntoPort) {
+                                             Direction dirIntoPort) { // TODO swap port dir
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
         Ref<Node> node = block.nodes.insert(Node{pos});
         return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
     case ObjAtCoordType::Con: { // make new node and split connection
-        Ref<Node> node = block.nodes.insert(Node{pos});
-        block.splitConWithNode(std::get<Connection>(var), node);
+        auto node = block.nodes.insert(Node{pos});
+        auto oldCon  = std::get<Connection>(var);
+        assert(block.conNet.contains(oldCon) && !block.conNet.contains(node));
+        auto&     net = block.conNet.nets[block.conNet.getClosNetRef(oldCon.portRef1).value()];
+        Direction dir = vecToDir(block.nodes[node].pos - block.getPort(oldCon.portRef1).portPos);
+        // TODO implement by swapping order and calling conNet instead
+        net.erase(oldCon);
+        net.insert(
+            Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir), PortType::node}));
+        net.insert(Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir)),
+                                                    PortType::node}));
         return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
     case ObjAtCoordType::Port: { // return port
