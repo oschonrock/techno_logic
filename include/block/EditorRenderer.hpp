@@ -129,8 +129,9 @@ class EditorRenderer {
         }
         if (event.type == sf::Event::MouseButtonReleased &&
             event.mouseButton.button == sf::Mouse::Left) {
-            moveStatus = MoveStatus::idle;
-            return moveStatus == MoveStatus::moveConfirmed; // capture release if move confirmed
+            bool captureEvent = moveStatus == MoveStatus::moveConfirmed;
+            moveStatus        = MoveStatus::idle;
+            return captureEvent;
         }
         if (event.type == sf::Event::Resized) {
             sf::Vector2f scale(
@@ -139,6 +140,7 @@ class EditorRenderer {
             view.setSize({view.getSize().x * scale.x, view.getSize().y * scale.y});
             prevWindowSize = {event.size.width, event.size.height};
             window.setView(view);
+            return true;
         }
         return false;
     }
@@ -185,7 +187,10 @@ class EditorRenderer {
         if (ImGui::TreeNode("Visual")) {
             ImGui::Text("Mouse pos: (%F, %F)", mousePos.x, mousePos.y);
             ImGui::Text("Closest coord: (%d, %d)", mouseCoord.x, mouseCoord.y);
+            ImGui::Text("Window size: (%u, %u)", window.getSize().x, window.getSize().y);
             ImGui::Text("View size: (%F, %F)", view.getSize().x, view.getSize().y);
+            ImGui::Text("Move status: %s",
+                        MoveStatusStrings[static_cast<std::size_t>(moveStatus)].c_str());
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Current Connection")) {
@@ -200,7 +205,8 @@ class EditorRenderer {
                 std::string endHover = ObjAtCoordStrings[editor.conEndObjVar.index()];
                 ImGui::Text("Start connected to %s at pos (%d, %d)", startHover.c_str(),
                             editor.conStartPos.x, editor.conStartPos.y);
-                ImGui::Text("Hovering %s", endHover.c_str());
+                ImGui::Text("Hovering %s at pos (%d, %d)", endHover.c_str(), editor.conEndPos.x,
+                            editor.conEndPos.y);
                 ImGui::Text("Proposed end point is %slegal", editor.conEndLegal ? "" : "il");
                 break;
             }
@@ -321,8 +327,7 @@ class EditorRenderer {
             break;
         case Editor::EditorState::Connecting:
             if (editor.conEndLegal) {
-                drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos,
-                               editor.conEndLegal ? newConColour : errorColour);
+                drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos, newConColour);
             }
             switch (typeOf(editor.conStartObjVar)) {
             case ObjAtCoordType::Con:

@@ -135,7 +135,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         conStartPos    = mousePos;
         conStartObjVar = whatIsAtCoord(conStartPos);
         conStartLegal  = isPosLegalStart(conStartPos);
-        // if network component highlight network
+        // if network component find network
         switch (typeOf(conStartObjVar)) { // TODO maybe make own function
         case ObjAtCoordType::Node: {
             conStartCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conStartObjVar));
@@ -168,9 +168,12 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             const auto& node     = block.nodes[nodeRef];
             auto        bestPort = std::max_element(
                 node.ports.begin(), node.ports.end(), [&](const auto& max, const auto& elem) {
-                    return block.conNet.contains(PortRef(
-                               nodeRef, static_cast<std::size_t>(max.portDir), PortType::node)) ||
-                           dot(max.portDir, diff) < dot(elem.portDir, diff);
+                    bool isElemPortInUse = block.conNet.contains(
+                        PortRef(nodeRef, static_cast<std::size_t>(elem.portDir), PortType::node));
+                    bool isMaxPortInUse = block.conNet.contains(
+                        PortRef(nodeRef, static_cast<std::size_t>(max.portDir), PortType::node));
+                    return isMaxPortInUse ||
+                           (dot(max.portDir, diff) < dot(elem.portDir, diff) && !isElemPortInUse);
                 });
             int bestDist = std::clamp(dot(bestPort->portDir, diff), 0, INT_MAX);
             newEndProp   = conStartPos + (dirToVec(bestPort->portDir) * bestDist);
@@ -211,7 +214,8 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         default:
             break;
         }
-        if (conStartCloNet && conEndCloNet && conStartCloNet.value() == conEndCloNet.value()) {
+        if (conStartPos != conEndPos && conStartCloNet && conEndCloNet &&
+            conStartCloNet.value() == conEndCloNet.value()) {
             ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
         }
         break;
