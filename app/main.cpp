@@ -14,7 +14,7 @@ int main() {
     }
 
     sf::RenderWindow window(sf::VideoMode({1440, 1080}), "Techo Logic");
-    window.setFramerateLimit(60);
+    window.setFramerateLimit(160);
     assert(ImGui::SFML::Init(window));
     // fix windows imgui no response bug
     ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::LostFocus));
@@ -34,6 +34,7 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             ImGui::SFML::ProcessEvent(window, event);
+            if (ImGui::GetIO().WantCaptureMouse) break;
             if (rend.event(event, mousePixPos)) break;
             editor.event(event, mousePos);
             if (event.type == sf::Event::Closed) {
