@@ -53,7 +53,7 @@ class Editor {
 
     Block& block;
 
-    sf::Vector2i                  conStartPos{-1, -1};
+    sf::Vector2i                  conStartPos;
     sf::Vector2i                  conEndPos;
     ObjAtCoordVar                 conStartObjVar;
     ObjAtCoordVar                 conEndObjVar;

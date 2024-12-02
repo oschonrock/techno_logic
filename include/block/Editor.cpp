@@ -42,10 +42,17 @@ bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
         }
     }
     if (typeOf(obj) == ObjAtCoordType::Con) {
-        auto con    = std::get<Connection>(obj);
-        auto conDir = block.getPort(con.portRef1).portDir;
+        auto con     = std::get<Connection>(obj);
+        auto conDir  = block.getPort(con.portRef1).portDir;
         auto propDir = vecToDir(end - conStartPos);
         if (propDir == conDir || propDir == reverseDir(conDir)) {
+            ImGui::SetTooltip("Illegal connection overlap");
+            return false;
+        }
+    }
+    for (const auto& node: block.nodes) {
+        auto pos = node.obj.pos;
+        if (isVecBetween(pos, conStartPos, end)) {
             ImGui::SetTooltip("Illegal connection overlap");
             return false;
         }
@@ -153,7 +160,6 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
 // Called every frame
 // Responsible for ensuring correct state of "con" variables according to block state and inputs
 void Editor::frame(const sf::Vector2i& mousePos) {
-    if (conStartPos == sf::Vector2i(-1, -1)) conStartPos = mousePos; // first frame setup
     switch (state) {
     case EditorState::Idle: {
         conStartPos    = mousePos;
@@ -187,7 +193,8 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             int         bestDist = std::clamp(dot(port.portDir, diff), 0, INT_MAX);
             newEndProp           = conStartPos + (dirToVec(port.portDir) * bestDist);
         }
-        case ObjAtCoordType::Node: { // TODO not working should find best AVAILABLE direction
+        case ObjAtCoordType::Node: { // finds best available direction
+            // TODO maybe should just be handled by legal check
             const auto& nodeRef  = std::get<Ref<Node>>(conStartObjVar);
             const auto& node     = block.nodes[nodeRef];
             auto        bestPort = std::max_element(

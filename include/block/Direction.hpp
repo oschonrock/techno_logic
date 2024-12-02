@@ -48,11 +48,14 @@ inline Direction swapXY(Direction dir) {
     return vecToDir(vec);
 }
 
+// NOTE: not inclusive
 inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1,
                          const sf::Vector2i& end2) {
     assert(isVecHoriVert(end1 - end2));
-    // imagine end1 is origin
-    return magPolar(vec - end1) + magPolar(end2 - vec) == magPolar(end2 - end1);
+    auto mag1 = magPolar(vec - end1);
+    auto mag2 = magPolar(end2 - vec);
+    if (mag1 == 0 || mag2 == 0) return false; // exclude ends
+    return mag1 + mag2 == magPolar(end2 - end1);
 }
 
 // inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {
