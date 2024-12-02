@@ -191,7 +191,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             break;
         }
         default:
-            throw std::logic_error("Start hover interactions not implemented yet for this object");
+            throw std::logic_error("Connection start from this object not implemented for this object yet");
             break;
         }
 

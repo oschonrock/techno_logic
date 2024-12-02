@@ -18,7 +18,7 @@ class EditorRenderer {
     static constexpr float crossSize       = 0.1f;
     static constexpr float nodeRad         = 0.1f;
     static constexpr float hlRad           = 0.1f;
-    sf::Color              crossColour{255, 255, 255, 70};
+    sf::Color              gridColour{255, 255, 255, 70};
     sf::Color              indicatorColour{255, 255, 255, 100};
     sf::Color              nodeColour         = sf::Color::White;
     sf::Color              conColour          = sf::Color::White;
@@ -38,9 +38,11 @@ class EditorRenderer {
     sf::View          view;
     sf::Vector2u      prevWindowSize;
 
-    std::vector<sf::Vertex> gridVertecies;
-    sf::CircleShape         mouseIndicator{hlRad};
-    sf::Text                name;
+    std::vector<sf::Vertex>   gridVerts;
+    bool                      isGridCrosses = false;
+    std::array<sf::Vertex, 5> borderVerts;
+    sf::CircleShape           mouseIndicator{hlRad};
+    sf::Text                  name;
 
     enum struct MoveStatus : std::size_t { idle = 0, moveStarted = 1, moveConfirmed = 2 };
     static constexpr std::array<std::string, 3> MoveStatusStrings{"idle", "moveStarted",
@@ -64,37 +66,37 @@ class EditorRenderer {
         prevWindowSize = window.getSize();
     }
 
+    void updateGrid() {
+        gridVerts.clear();
+        gridVerts.reserve(block.size * block.size * (isGridCrosses ? 4 : 1));
+        for (std::size_t x = 0; x < block.size; ++x) {
+            for (std::size_t y = 0; y < block.size; ++y) {
+                sf::Vector2f pos{static_cast<float>(x), static_cast<float>(y)};
+                if (isGridCrosses) {
+                    gridVerts.emplace_back(pos - sf::Vector2f{-crossSize, 0.0f}, gridColour);
+                    gridVerts.emplace_back(pos - sf::Vector2f{crossSize, 0.0f}, gridColour);
+                    gridVerts.emplace_back(pos - sf::Vector2f{0.0f, -crossSize}, gridColour);
+                    gridVerts.emplace_back(pos - sf::Vector2f{0.0f, crossSize}, gridColour);
+                } else {
+                    gridVerts.emplace_back(pos, gridColour);
+                }
+            }
+        }
+    }
+
   public:
     EditorRenderer(const Editor& editor_, sf::RenderWindow& window_, const sf::Font& font_)
         : font(font_), editor(editor_), block(editor.block), window(window_),
-          gridVertecies(block.size * block.size * 4 + 8), name(block.name, font) {
+          name(block.name, font) {
         // make grid
-        for (std::size_t x = 0; x < block.size; ++x) {
-            for (std::size_t y = 0; y < block.size; ++y) {
-                std::size_t  index = (x + y * block.size) * 4;
-                sf::Vector2f pos{static_cast<float>(x), static_cast<float>(y)};
-                gridVertecies[index]     = {pos - sf::Vector2f{-crossSize, 0.0f}, crossColour};
-                gridVertecies[index + 1] = {pos - sf::Vector2f{crossSize, 0.0f}, crossColour};
-                gridVertecies[index + 2] = {pos - sf::Vector2f{0.0f, -crossSize}, crossColour};
-                gridVertecies[index + 3] = {pos - sf::Vector2f{0.0f, crossSize}, crossColour};
-            }
-        }
+        updateGrid();
 
         // make border
-        sf::Vertex bl = {{-1.0f, -1.0f}};
-        sf::Vertex tl = {{-1.0f, static_cast<float>(block.size)}};
-        sf::Vertex tr = {{static_cast<float>(block.size), static_cast<float>(block.size)}};
-        sf::Vertex br = {{static_cast<float>(block.size), -1.0f}};
-
-        // maybe should be replaced by a linestrip or other drawing
-        gridVertecies[gridVertecies.size() - 8] = bl;
-        gridVertecies[gridVertecies.size() - 7] = tl;
-        gridVertecies[gridVertecies.size() - 6] = tl;
-        gridVertecies[gridVertecies.size() - 5] = tr;
-        gridVertecies[gridVertecies.size() - 4] = tr;
-        gridVertecies[gridVertecies.size() - 3] = br;
-        gridVertecies[gridVertecies.size() - 2] = br;
-        gridVertecies[gridVertecies.size() - 1] = bl;
+        borderVerts[0] = {{-1.0f, -1.0f}};
+        borderVerts[1] = {{-1.0f, static_cast<float>(block.size)}};
+        borderVerts[2] = {{static_cast<float>(block.size), static_cast<float>(block.size)}};
+        borderVerts[3] = {{static_cast<float>(block.size), -1.0f}};
+        borderVerts[4] = {{-1.0f, -1.0f}};
 
         // set up highlighter
         mouseIndicator.setOrigin({hlRad, hlRad});
@@ -290,7 +292,9 @@ class EditorRenderer {
 
         // basics
         window.draw(name);
-        window.draw(gridVertecies.data(), gridVertecies.size(), sf::PrimitiveType::Lines);
+        window.draw(gridVerts.data(), gridVerts.size(),
+                    isGridCrosses ? sf::PrimitiveType::Lines : sf::PrimitiveType::Points);
+        window.draw(borderVerts.data(), borderVerts.size(), sf::PrimitiveType::LineStrip);
 
         // draw connections
         std::vector<sf::Vertex> conVerts{};
