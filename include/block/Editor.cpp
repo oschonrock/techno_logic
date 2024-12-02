@@ -57,7 +57,6 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
                                              Direction dirIntoPort) {
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
-        std::cout << "new node made" << std::endl;
         Ref<Node> node = block.nodes.insert(Node{pos});
         return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
@@ -66,11 +65,20 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
         block.splitConWithNode(std::get<Connection>(var), node);
         return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
-    case ObjAtCoordType::Port: { // return portRef
+    case ObjAtCoordType::Port: { // return port
         return std::get<PortRef>(var);
     }
-    case ObjAtCoordType::Node: {
+    case ObjAtCoordType::Node: { // if redundant delete node else return port
         Ref<Node> node = std::get<Ref<Node>>(var);
+        PortRef   port{node, static_cast<std::size_t>(dirIntoPort), PortType::node};
+        auto      parralelPortNet = block.conNet.getClosNetRef(port);
+        if (parralelPortNet && block.conNet.getNodeConCount(node) == 1) { // if node is redundant
+            auto& net          = block.conNet.nets[parralelPortNet.value()];
+            auto  redundantCon = net.getCon(port);
+            net.erase(redundantCon);
+            block.nodes.erase(node);
+            return redundantCon.portRef2;
+        }
         return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
     }
     default:
@@ -191,7 +199,8 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             break;
         }
         default:
-            throw std::logic_error("Connection start from this object not implemented for this object yet");
+            throw std::logic_error(
+                "Connection start from this object not implemented for this object yet");
             break;
         }
 

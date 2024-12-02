@@ -37,6 +37,7 @@ struct Block {
         assert(conNet.contains(con) && !conNet.contains(nodeRef));
         auto&     net = conNet.nets[conNet.getClosNetRef(con.portRef1).value()];
         Direction dir = vecToDir(nodes[nodeRef].pos - getPort(con.portRef1).portPos);
+        // TODO implement by swapping order and calling conNet instead
         net.erase(con);
         net.insert(Connection(con.portRef1,
                               PortRef{nodeRef, static_cast<std::size_t>(dir), PortType::node}));

@@ -197,22 +197,18 @@ class ConnectionNetwork {
 
     void insert(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
                 const std::optional<Ref<ClosedNet>>& net2) {
-        if (!net1 && !net2) { // make new closedNet
-            std::cout << "made new closed network \n";
+        if (!net1 && !net2) { // make new closed network
             auto netRef = nets.insert(ClosedNet{});
             nets[netRef].insert(con);
             return;
         }
-
         if (net1 && net2) { // connecting two existing networks
             auto net1Ref = net1.value();
             auto net2Ref = net2.value();
-            if (net1Ref == net2Ref) {
-                std::cout << "made loop within closed network \n";
+            if (net1Ref == net2Ref) { // making loop within closed network
                 nets[net1Ref].insert(con);
                 return;
-            } else {
-                std::cout << "connected two closed networks \n";
+            } else { // connecting two closed networks
                 if (nets[net1Ref].getSize() < nets[net2Ref].getSize()) std::swap(net1Ref, net2Ref);
                 // net1 is now the bigger of the two
                 nets[net1Ref] += nets[net2Ref];
@@ -221,7 +217,7 @@ class ConnectionNetwork {
                 return;
             }
         }
-        std::cout << "extending network \n";
+        // extending network
         nets[net1 ? net1.value() : net2.value()].insert(con);
         return;
     }
