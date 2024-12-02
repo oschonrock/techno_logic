@@ -41,7 +41,7 @@ class Editor {
     bool          isPosLegalEnd(const sf::Vector2i& pos) const;
     bool          isPosLegalStart(const sf::Vector2i& start) const;
 
-    [[nodiscard]] PortRef makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
+    [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
     void                  splitCon(const Connection& con, Ref<Node> node);
 

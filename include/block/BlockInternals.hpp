@@ -132,7 +132,7 @@ class ClosedNet {
     }
 
   public:
-    [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
+    // [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
     [[nodiscard]] bool                          hasInput() const { return input.has_value(); }
     [[nodiscard]] const std::optional<PortRef>& getInput() const { return input; }
     [[nodiscard]] const std::vector<PortRef>&   getOutputs() const { return outputs; }
@@ -183,11 +183,57 @@ class ClosedNet {
         throw std::logic_error("Port not connected to closed net. Did you call contains?");
     }
 
-    // NOTE: Destroy network "other". Adds all connections from another network
+    // NOTE: Destroys network "other". Adds all connections from another network
     void operator+=(const ClosedNet& other) {
         for (const auto& con: other.conMap) {
             insert({con.first, con.second});
         }
+        conMap.begin();
+    }
+
+    // provides iterator to loop over connections
+    struct Iterator {
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
+        using value_type        = Connection;
+        using pointer           = const Connection*; // or also value_type*
+        using reference         = const Connection&; // or also value_type&
+
+        using MapIt = absl::flat_hash_map<PortRef, PortRef>::const_iterator;
+        Iterator()  = delete;
+        Iterator(MapIt it, MapIt end) : it_(it), end_(end), con(it->first, it->second) {}
+        Iterator(MapIt it, Connection placeholderCon) : it_(it), con(placeholderCon) {}
+
+        [[nodiscard]] reference operator*() const { return con; }
+        [[nodiscard]] pointer   operator->() const { return &con; }
+
+        Iterator& operator++() { // Prefix increment
+            ++it_;
+            if (it_ != end_) con = Connection(it_->first, it_->second);
+            return *this;
+        }
+
+        Iterator operator++(int) { // Postfix increment
+            Iterator tmp = *this;
+            ++it_;
+            if (it_ != end_) con = Connection(it_->first, it_->second);
+            return tmp;
+        }
+
+        friend bool operator==(const Iterator& a, const Iterator& b) { return a.it_ == b.it_; }
+        friend bool operator!=(const Iterator& a, const Iterator& b) { return a.it_ != b.it_; }
+
+      private:
+        MapIt      it_;
+        MapIt      end_; // required to avoid dereference of end()
+        Connection con;
+    };
+    static_assert(std::input_iterator<Iterator>);
+
+    [[nodiscard]] Iterator begin() const { return Iterator(conMap.begin(), conMap.end()); }
+    [[nodiscard]] Iterator end() const {
+        // passes placeholder connection to prevent *end()
+        return Iterator(conMap.end(), Connection(*begin()));
     }
 };
 

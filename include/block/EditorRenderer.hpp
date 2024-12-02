@@ -52,7 +52,7 @@ class EditorRenderer {
     sf::Vector2f                                mousePosLast;
     bool                                        debugEnabled = true;
     std::optional<Ref<Node>>                    debugNode;
-    std::optional<std::pair<PortRef, PortRef>>  debugCon;
+    std::optional<Connection>                   debugCon;
     std::optional<Ref<ClosedNet>>               debugNet;
 
     void setViewDefault() {
@@ -243,29 +243,27 @@ class EditorRenderer {
                     }
                     if (netOpen) {
                         std::size_t conCount = 1;
-                        for (const auto& portPair: net.obj.getMap()) {
+                        for (const auto& con: net.obj) {
                             if (conCount != 1) {
                                 ImGui::TableNextRow();
                             }
 
                             ImGui::TableSetColumnIndex(1);
-                            ImGui::Selectable(PortObjRefStrings[portPair.first.ref.index()].c_str(),
+                            ImGui::Selectable(PortObjRefStrings[con.portRef1.ref.index()].c_str(),
                                               debugNetHovered);
                             if (ImGui::IsItemHovered() &&
-                                typeOf(portPair.first) == PortObjType::Node) {
-                                debugNode = std::get<Ref<Node>>(portPair.first.ref);
-                                debugCon  = portPair;
+                                typeOf(con.portRef1) == PortObjType::Node) {
+                                debugNode = std::get<Ref<Node>>(con.portRef1.ref);
+                                debugCon  = con;
                                 ImGui::SetTooltip("Debug node and con");
                             }
 
                             ImGui::TableNextColumn();
-                            ImGui::Selectable(
-                                PortObjRefStrings[portPair.second.ref.index()].c_str(),
-                                debugNetHovered);
-                            if (ImGui::IsItemHovered() &&
-                                typeOf(portPair.second) == PortObjType::Node) {
-                                debugNode = std::get<Ref<Node>>(portPair.second.ref);
-                                debugCon  = portPair;
+                            ImGui::Selectable(PortObjRefStrings[con.portRef2.ref.index()].c_str(),
+                                              debugNetHovered);
+                            if (ImGui::IsItemHovered() && typeOf(con.portRef2) == PortObjType::Node) {
+                                debugNode = std::get<Ref<Node>>(con.portRef2.ref);
+                                debugCon  = con;
                                 ImGui::SetTooltip("Debug node and con");
                             }
                             ++conCount;
@@ -307,9 +305,9 @@ class EditorRenderer {
                 col = highlightConColour; // editor hover color
             }
 
-            for (const auto& portPair: net.obj.getMap()) {
-                conVerts.emplace_back(sf::Vector2f(block.getPort(portPair.first).portPos), col);
-                conVerts.emplace_back(sf::Vector2f(block.getPort(portPair.second).portPos), col);
+            for (const auto& con: net.obj) {
+                conVerts.emplace_back(sf::Vector2f(block.getPort(con.portRef1).portPos), col);
+                conVerts.emplace_back(sf::Vector2f(block.getPort(con.portRef2).portPos), col);
             }
         }
         window.draw(conVerts.data(), conVerts.size(), sf::PrimitiveType::Lines);
@@ -347,11 +345,11 @@ class EditorRenderer {
         // Debug overlays
         if (debugNet) { // draw debug nodes over top
             const auto& net = block.conNet.nets[debugNet.value()];
-            for (const auto& portRef: net.getMap()) {
+            for (const auto& con: net) {
                 // potentially multi draw when multi connected port
-                auto port = block.getPort(portRef.first);
+                auto port = block.getPort(con.portRef1);
                 drawNode(port.portPos, nodeRad * 1.2f, debugNodeColour);
-                port = block.getPort(portRef.second);
+                port = block.getPort(con.portRef2);
                 drawNode(port.portPos, nodeRad * 1.2f, debugNodeColour);
             }
         }
@@ -359,8 +357,8 @@ class EditorRenderer {
             drawNode(block.nodes[debugNode.value()].pos, 1.2f * nodeRad, debugNodeColour);
         }
         if (debugCon) { // draw debug con over top
-            drawSingleLine(lineVertecies, block.getPort(debugCon->first).portPos,
-                           block.getPort(debugCon->second).portPos, debugConColour);
+            drawSingleLine(lineVertecies, block.getPort(debugCon->portRef1).portPos,
+                           block.getPort(debugCon->portRef2).portPos, debugConColour);
         }
         window.draw(lineVertecies.data(), lineVertecies.size(), sf::PrimitiveType::Lines);
     }

@@ -10,8 +10,7 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) const {
     // check connections
     std::vector<Connection> cons;
     for (const auto& net: block.conNet.nets) {
-        for (const auto& portPair: net.obj.getMap()) {
-            Connection con(portPair.first, portPair.second);
+        for (const auto& con: net.obj) {
             if (block.collisionCheck(con, coord)) cons.push_back(con);
         }
     }
@@ -75,8 +74,9 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
 }
 
 // Returns ref to port at location
-// if there isn't one creates one according to what's currently there;
-[[nodiscard]] PortRef Editor::makeNewPortRef(const ObjAtCoordVar& var, const sf::Vector2i& pos,
+// If there isn't one creates one according to what's currently there;
+// Note takes var by ref and may invalidate it (in case of deleting redundant point)
+[[nodiscard]] PortRef Editor::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
                                              Direction dirIntoPort) {
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
@@ -100,6 +100,7 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
             auto  redundantCon = net.getCon(port);
             net.erase(redundantCon);
             block.nodes.erase(node);
+            var = {}; // prevents deleted node ref being used
             return redundantCon.portRef2;
         }
         return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
