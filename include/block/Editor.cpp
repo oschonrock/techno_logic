@@ -22,17 +22,33 @@ ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) const {
     } else if (cons.size() == 1) {
         return cons[0];
     }
-
     return {};
 }
 
 // checks if pos is a legal final target for conccection
 bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
-    if (conStartPos == conEndPos) return true; // no-op case
+    if (conStartPos == end) return true; // no-op case
     auto obj = whatIsAtCoord(end);
     if (!isCoordConType(obj)) {
         ImGui::SetTooltip("Target obj invalid");
         return false;
+    }
+    if (typeOf(obj) == ObjAtCoordType::Node) {
+        auto node    = std::get<Ref<Node>>(obj);
+        auto portNum = static_cast<std::size_t>(vecToDir(conStartPos - end));
+        if (block.conNet.contains(PortRef{node, portNum, PortType::node})) {
+            ImGui::SetTooltip("Node already has connection in this direction");
+            return false;
+        }
+    }
+    if (typeOf(obj) == ObjAtCoordType::Con) {
+        auto con    = std::get<Connection>(obj);
+        auto conDir = block.getPort(con.portRef1).portDir;
+        auto propDir = vecToDir(end - conStartPos);
+        if (propDir == conDir || propDir == reverseDir(conDir)) {
+            ImGui::SetTooltip("Illegal connection overlap");
+            return false;
+        }
     }
     return true;
 }
