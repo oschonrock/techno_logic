@@ -16,20 +16,13 @@ inline float mag(const sf::Vector2i& vec) {
     return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
 }
 
-struct Block;
-
-// TODO maybe remove... really only used when inserting for entering in out/inputs
-enum struct PortType { input, output, node };
-
-class PortInst {
-  public:
+struct PortInst {
     Direction    portDir;
     sf::Vector2i portPos;
     bool         negated = false;
 };
 
-class Node {
-  public:
+struct Node {
     sf::Vector2i            pos;
     std::array<PortInst, 4> ports;
 
@@ -37,15 +30,15 @@ class Node {
     Node(const sf::Vector2i& pos_);
 };
 
-class BlockInst {
-  public:
+struct Block;
+
+struct BlockInst {
     sf::Vector2i          pos;
     std::vector<PortInst> ports;
     Ref<Block>            block;
 };
 
-class Gate {
-  public:
+struct Gate {
     sf::Vector2i          pos;
     std::vector<PortInst> ports;
 };
@@ -54,13 +47,17 @@ using PortObjRef = std::variant<Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
 enum struct PortObjType : std::size_t { Node = 0, Gate = 1, BlockInst = 2 };
 static constexpr std::array<std::string, 3> PortObjRefStrings{"node", "gate", "block"};
 
-class PortRef {
-  public:
+enum struct PortType { input, output, node };
+
+struct Port {
+    std::string name;
+    PortType    type;
+};
+
+struct PortRef {
     PortObjRef  ref;
     std::size_t portNum;
-    PortType    portType;
-    PortRef(PortObjRef ref_, std::size_t portNum_, PortType portType_)
-        : ref(ref_), portNum(portNum_), portType(portType_) {}
+    PortRef(PortObjRef ref_, std::size_t portNum_) : ref(ref_), portNum(portNum_) {}
 
     bool operator==(const PortRef& other) const {
         return (ref == other.ref) && (portNum == other.portNum);
@@ -105,7 +102,7 @@ class ClosedNet {
     std::vector<PortRef>                  outputs{};
     std::size_t                           size{};
 
-    void maintainIOVecs(bool isInsert, const PortRef& portRef);
+    void maintainIOVecs(bool isInsert, const PortRef& portRef, const PortType& portType);
 
   public:
     // [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
@@ -114,8 +111,8 @@ class ClosedNet {
     [[nodiscard]] const std::vector<PortRef>&   getOutputs() const { return outputs; }
     [[nodiscard]] std::size_t                   getSize() const { return size; }
 
-    void               insert(const Connection& con);
-    void               erase(const Connection& con);
+    void insert(const Connection& con, const std::pair<PortType, PortType>& portTypes);
+    void erase(const Connection& con, const std::pair<PortType, PortType>& portTypes);
     [[nodiscard]] bool contains(const PortRef& port) const;
     [[nodiscard]] bool contains(const Connection& con) const;
     // prefer call contains() on port
@@ -125,7 +122,7 @@ class ClosedNet {
     // NOTE: Destroys network "other". Adds all connections from another network
     void operator+=(const ClosedNet& other) {
         for (const auto& con: other.conMap) {
-            insert({con.first, con.second});
+            insert({con.first, con.second}, {PortType::node, PortType::node});
         }
         conMap.begin();
     }
@@ -184,7 +181,8 @@ class ConnectionNetwork {
   public:
     StableVector<ClosedNet> nets{};
     void                    insert(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
-                                   const std::optional<Ref<ClosedNet>>& net2);
+                                   const std::optional<Ref<ClosedNet>>& net2,
+                                   const std::pair<PortType, PortType>& portTypes);
 
     template <typename T>
     // try to call this with ports over nodes if you have the port
@@ -211,9 +209,11 @@ struct Block {
     StableVector<Node>      nodes;
     StableVector<Gate>      gates;
     ConnectionNetwork       conNet;
+    std::vector<Port>       ports;
 
-    PortInst&       getPort(const PortRef& port);
-    const PortInst& getPort(const PortRef& port) const;
-
+    PortInst&                     getPort(const PortRef& port);
+    const PortInst&               getPort(const PortRef& port) const;
+    PortType                      getPortType(const PortRef& port) const;
+    std::pair<PortType, PortType> getPortType(const Connection& con) const;
     bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
 };

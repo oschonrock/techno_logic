@@ -35,7 +35,7 @@ bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
     if (typeOf(obj) == ObjAtCoordType::Node) {
         auto node    = std::get<Ref<Node>>(obj);
         auto portNum = static_cast<std::size_t>(vecToDir(conStartPos - end));
-        if (block.conNet.contains(PortRef{node, portNum, PortType::node})) {
+        if (block.conNet.contains(PortRef{node, portNum})) {
             ImGui::SetTooltip("Node already has connection in this direction");
             return false;
         }
@@ -81,38 +81,38 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
         Ref<Node> node = block.nodes.insert(Node{pos});
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
     }
     case ObjAtCoordType::Con: { // make new node and split connection
-        auto node = block.nodes.insert(Node{pos});
-        auto oldCon  = std::get<Connection>(var);
+        auto node   = block.nodes.insert(Node{pos});
+        auto oldCon = std::get<Connection>(var);
         assert(block.conNet.contains(oldCon) && !block.conNet.contains(node));
         auto&     net = block.conNet.nets[block.conNet.getClosNetRef(oldCon.portRef1).value()];
         Direction dir = vecToDir(block.nodes[node].pos - block.getPort(oldCon.portRef1).portPos);
         // TODO implement by swapping order and calling conNet instead
-        net.erase(oldCon);
-        net.insert(
-            Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir), PortType::node}));
-        net.insert(Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir)),
-                                                    PortType::node}));
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
+        net.erase(oldCon, block.getPortType(oldCon));
+        auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
+        net.insert(con, block.getPortType(con));
+        con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
+        net.insert(con, block.getPortType(con));
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
     }
     case ObjAtCoordType::Port: { // return port
         return std::get<PortRef>(var);
     }
     case ObjAtCoordType::Node: { // if redundant delete node else return port
         Ref<Node> node = std::get<Ref<Node>>(var);
-        PortRef   port{node, static_cast<std::size_t>(dirIntoPort), PortType::node};
+        PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
         auto      parralelPortNet = block.conNet.getClosNetRef(port);
         if (parralelPortNet && block.conNet.getNodeConCount(node) == 1) { // if node is redundant
             auto& net          = block.conNet.nets[parralelPortNet.value()];
             auto  redundantCon = net.getCon(port);
-            net.erase(redundantCon);
+            net.erase(redundantCon, block.getPortType(redundantCon));
             block.nodes.erase(node);
             var = {}; // prevents deleted node ref being used
             return redundantCon.portRef2;
         }
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort)), PortType::node};
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
     }
     default:
         throw std::logic_error("Cannot make connection to location which isn't viable");
@@ -157,8 +157,9 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
                 makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
             PortRef endPort =
                 makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
+            Connection con{startPort, endPort};
 
-            block.conNet.insert({startPort, endPort}, conStartCloNet, conEndCloNet);
+            block.conNet.insert(con, conStartCloNet, conEndCloNet, block.getPortType(con));
             state = EditorState::Idle;
             conEndCloNet.reset();
             break;
@@ -210,9 +211,9 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             auto        bestPort = std::max_element(
                 node.ports.begin(), node.ports.end(), [&](const auto& max, const auto& elem) {
                     bool isElemPortInUse = block.conNet.contains(
-                        PortRef(nodeRef, static_cast<std::size_t>(elem.portDir), PortType::node));
+                        PortRef(nodeRef, static_cast<std::size_t>(elem.portDir)));
                     bool isMaxPortInUse = block.conNet.contains(
-                        PortRef(nodeRef, static_cast<std::size_t>(max.portDir), PortType::node));
+                        PortRef(nodeRef, static_cast<std::size_t>(max.portDir)));
                     return isMaxPortInUse ||
                            (dot(max.portDir, diff) < dot(elem.portDir, diff) && !isElemPortInUse);
                 });
