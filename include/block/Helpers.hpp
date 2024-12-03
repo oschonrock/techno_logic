@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <optional>
 enum struct Direction : std::size_t { up = 0, down = 1, left = 2, right = 3 };
 
 inline sf::Vector2i dirToVec(Direction dir) {
@@ -58,20 +59,42 @@ inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1,
     return mag1 + mag2 == magPolar(end2 - end1);
 }
 
-inline bool doLinesCross(const std::pair<sf::Vector2i, sf::Vector2i>& line1,
-                         const std::pair<sf::Vector2i, sf::Vector2i>& line2) {
+inline sf::Vector2i normalise(sf::Vector2i vec) {
+    vec.x = (vec.x > 0) - (vec.x < 0);
+    vec.y = (vec.y > 0) - (vec.y < 0);
+    return vec;
+}
+
+inline std::optional<sf::Vector2i>
+getLineIntersection(const std::pair<sf::Vector2i, sf::Vector2i>& line1,
+                    const std::pair<sf::Vector2i, sf::Vector2i>& line2) {
     auto diff1 = line1.second - line1.first;
     auto diff2 = line2.second - line2.first;
     assert(isVecHoriVert(diff1));
     assert(isVecHoriVert(diff2));
-    auto dir1 = vecToDir(diff1);
-    auto dir2 = vecToDir(diff2);
-    if (dir1 == dir2 || dir1 == reverseDir(dir2)) return false; // if parralel
-    auto dt = dot(diff1, line2.first - line1.first);
-    if (!(dt > 0 && dt < (magPolar(diff1) ^ 2))) return false; // line 2 not between line 1
-    dt = dot(diff2, line1.first - line2.first);
-    if (!(dt > 0 && dt < (magPolar(diff2) ^ 2))) return false; // line 1 not between line 2
-    return true;
+    if (dot(diff1, diff2) != 0) return {}; // if parralel
+    int  mag = magPolar(diff1);
+    auto dir = diff1 / mag;
+    auto dt  = dot(dir, line2.first - line1.first);
+    if (!(dt > 0 && dt < mag)) return {}; // line 2 not between line 1
+    mag = magPolar(diff2);
+    dir = diff2 / mag;
+    dt  = dot(dir, line1.first - line2.first);
+    if (!(dt > 0 && dt < mag)) return {}; // line 1 not between line 2
+    return line2.first + (dt * dir);
+}
+
+inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
+    if (abs(vec.x) > abs(vec.y)) {
+        return {vec.x, 0};
+    } else {
+        return {0, vec.y};
+    }
+}
+
+inline float mag(const sf::Vector2f& vec) { return std::sqrt(vec.x * vec.x + vec.y * vec.y); }
+inline float mag(const sf::Vector2i& vec) {
+    return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
 }
 
 // inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {

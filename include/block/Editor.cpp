@@ -2,32 +2,10 @@
 
 #include "Editor.hpp"
 
-ObjAtCoordVar Editor::whatIsAtCoord(const sf::Vector2i& coord) const {
-    // check for nodes
-    for (const auto& node: block.nodes) {
-        if (coord == node.obj.pos) return node.ind;
-    }
-    // check connections
-    std::vector<Connection> cons;
-    for (const auto& net: block.conNet.nets) {
-        for (const auto& con: net.obj) {
-            if (block.collisionCheck(con, coord)) cons.push_back(con);
-        }
-    }
-    if (cons.size() > 2)
-        throw std::logic_error("Should never be more than 2 connections overlapping");
-    else if (cons.size() == 2) {
-        return std::make_pair(cons[0], cons[0]);
-    } else if (cons.size() == 1) {
-        return cons[0];
-    }
-    return {};
-}
-
 // checks if pos is a legal final target for conccection
 bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
     if (conStartPos == end) return true; // no-op case
-    auto obj = whatIsAtCoord(end);
+    auto obj = block.whatIsAtCoord(end);
     if (!isCoordConType(obj)) {
         ImGui::SetTooltip("Target obj invalid");
         return false;
@@ -60,7 +38,7 @@ bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
 }
 
 bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
-    auto obj = whatIsAtCoord(start);
+    auto obj = block.whatIsAtCoord(start);
     if (!isCoordConType(obj)) {
         ImGui::SetTooltip("Target obj invalid");
         return false;
@@ -71,52 +49,6 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
         return false;
     }
     return true;
-}
-
-// Returns ref to port at location
-// If there isn't one creates one according to what's currently there;
-// Note takes var by ref and may invalidate it (in case of deleting redundant point)
-[[nodiscard]] PortRef Editor::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                             Direction dirIntoPort) { // TODO swap port dir
-    switch (typeOf(var)) {
-    case ObjAtCoordType::Empty: { // make new node
-        Ref<Node> node = block.nodes.insert(Node{pos});
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
-    }
-    case ObjAtCoordType::Con: { // make new node and split connection
-        auto node   = block.nodes.insert(Node{pos});
-        auto oldCon = std::get<Connection>(var);
-        assert(block.conNet.contains(oldCon) && !block.conNet.contains(node));
-        auto&     net = block.conNet.nets[block.conNet.getClosNetRef(oldCon.portRef1).value()];
-        Direction dir = vecToDir(block.nodes[node].pos - block.getPort(oldCon.portRef1).portPos);
-        // TODO implement by swapping order and calling conNet instead
-        net.erase(oldCon, block.getPortType(oldCon));
-        auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
-        net.insert(con, block.getPortType(con));
-        con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
-        net.insert(con, block.getPortType(con));
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
-    }
-    case ObjAtCoordType::Port: { // return port
-        return std::get<PortRef>(var);
-    }
-    case ObjAtCoordType::Node: { // if redundant delete node else return port
-        Ref<Node> node = std::get<Ref<Node>>(var);
-        PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
-        auto      parralelPortNet = block.conNet.getClosNetRef(port);
-        if (parralelPortNet && block.conNet.getNodeConCount(node) == 1) { // if node is redundant
-            auto& net          = block.conNet.nets[parralelPortNet.value()];
-            auto  redundantCon = net.getCon(port);
-            net.erase(redundantCon, block.getPortType(redundantCon));
-            block.nodes.erase(node);
-            var = {}; // prevents deleted node ref being used
-            return redundantCon.portRef2;
-        }
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
-    }
-    default:
-        throw std::logic_error("Cannot make connection to location which isn't viable");
-    }
 }
 
 sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
@@ -130,7 +62,7 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
 void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
     if (event.type == sf::Event::MouseButtonReleased &&
         event.mouseButton.button == sf::Mouse::Left) {
-        auto clickedObj = whatIsAtCoord(mousePos);
+        auto clickedObj = block.whatIsAtCoord(mousePos);
         switch (state) {
         case EditorState::Idle: { // new connection started
             if (!conStartLegal) break;
@@ -154,10 +86,15 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
             }
 
             PortRef startPort =
-                makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
+                block.makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
             PortRef endPort =
-                makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
+                block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
             Connection con{startPort, endPort};
+
+            std::cout << "start net:\n";
+            if (conStartCloNet) block.makeOverlapNodes(con, conStartCloNet.value());
+            std::cout << "end net:\n";
+            if (conEndCloNet) block.makeOverlapNodes(con, conEndCloNet.value());
 
             block.conNet.insert(con, conStartCloNet, conEndCloNet, block.getPortType(con));
             state = EditorState::Idle;
@@ -174,7 +111,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
     switch (state) {
     case EditorState::Idle: {
         conStartPos    = mousePos;
-        conStartObjVar = whatIsAtCoord(conStartPos);
+        conStartObjVar = block.whatIsAtCoord(conStartPos);
         conStartLegal  = isPosLegalStart(conStartPos);
         // if network component find network
         switch (typeOf(conStartObjVar)) { // TODO maybe make own function
@@ -244,7 +181,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         }
         conEndLegal  = true;
         conEndPos    = newEndProp;
-        conEndObjVar = whatIsAtCoord(conEndPos);
+        conEndObjVar = block.whatIsAtCoord(conEndPos);
         switch (typeOf(conEndObjVar)) { // if network component find closednet
         case ObjAtCoordType::Node: {
             conEndCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conEndObjVar));

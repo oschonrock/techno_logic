@@ -157,3 +157,96 @@ std::pair<PortType, PortType> Block::getPortType(const Connection& con) const {
 bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) const {
     return isVecBetween(coord, getPort(con.portRef1).portPos, getPort(con.portRef2).portPos);
 }
+
+void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
+    assert(conNet.contains(oldCon) && !conNet.contains(node));
+    auto&     net = conNet.nets[conNet.getClosNetRef(oldCon.portRef1).value()];
+    Direction dir = vecToDir(nodes[node].pos - getPort(oldCon.portRef1).portPos);
+    // TODO implement by swapping order and calling conNet instead
+    net.erase(oldCon, getPortType(oldCon));
+    auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
+    net.insert(con, getPortType(con));
+    con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
+    net.insert(con, getPortType(con));
+}
+
+void Block::makeOverlapNodes(const Connection& con, Ref<ClosedNet> netRef) {
+    std::vector<std::pair<Connection, sf::Vector2i>> intersections{};
+    auto&                                            net          = conNet.nets[netRef];
+    std::pair<sf::Vector2i, sf::Vector2i>            conPositions = {getPort(con.portRef1).portPos,
+                                                                     getPort(con.portRef2).portPos};
+    for (const auto& netCon: net) {
+        std::pair<sf::Vector2i, sf::Vector2i> netConPositions{getPort(netCon.portRef1).portPos,
+                                                              getPort(netCon.portRef2).portPos};
+        auto intersec = getLineIntersection(conPositions, netConPositions);
+        if (intersec) intersections.emplace_back(netCon, intersec.value());
+    }
+    for (const auto& intersec: intersections) {
+        std::cout << "Intersection found at (" << intersec.second.x << "," << intersec.second.y
+                  << ")\n";
+        auto netCon = intersec.first;
+        auto node   = nodes.insert(Node{intersec.second});
+        splitCon(netCon, node);
+        splitCon(con, node);
+    }
+}
+
+// Returns ref to port at location
+// If there isn't one creates one according to what's currently there;
+// Note takes var by ref and may invalidate it (in case of deleting redundant point)
+[[nodiscard]] PortRef Block::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
+                                            Direction dirIntoPort) { // TODO swap port dir
+    switch (typeOf(var)) {
+    case ObjAtCoordType::Empty: { // make new node
+        Ref<Node> node = nodes.insert(Node{pos});
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+    }
+    case ObjAtCoordType::Con: { // make new node and split connection
+        auto node   = nodes.insert(Node{pos});
+        auto oldCon = std::get<Connection>(var);
+        splitCon(oldCon, node);
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+    }
+    case ObjAtCoordType::Port: { // return port
+        return std::get<PortRef>(var);
+    }
+    case ObjAtCoordType::Node: { // if redundant delete node else return port
+        Ref<Node> node = std::get<Ref<Node>>(var);
+        PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
+        auto      parralelPortNet = conNet.getClosNetRef(port);
+        if (parralelPortNet && conNet.getNodeConCount(node) == 1) { // if node is redundant
+            auto& net          = conNet.nets[parralelPortNet.value()];
+            auto  redundantCon = net.getCon(port);
+            net.erase(redundantCon, getPortType(redundantCon));
+            nodes.erase(node);
+            var = {}; // prevents deleted node ref being used
+            return redundantCon.portRef2;
+        }
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+    }
+    default:
+        throw std::logic_error("Cannot make connection to location which isn't viable");
+    }
+}
+
+ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
+    // check for nodes
+    for (const auto& node: nodes) {
+        if (coord == node.obj.pos) return node.ind;
+    }
+    // check connections
+    std::vector<Connection> cons;
+    for (const auto& net: conNet.nets) {
+        for (const auto& con: net.obj) {
+            if (collisionCheck(con, coord)) cons.push_back(con);
+        }
+    }
+    if (cons.size() > 2)
+        throw std::logic_error("Should never be more than 2 connections overlapping");
+    else if (cons.size() == 2) {
+        return std::make_pair(cons[0], cons[0]);
+    } else if (cons.size() == 1) {
+        return cons[0];
+    }
+    return {};
+}

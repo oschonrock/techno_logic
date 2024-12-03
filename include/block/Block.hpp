@@ -1,20 +1,7 @@
 #pragma once
 
-#include "Direction.hpp"
+#include "Helpers.hpp"
 #include "details/StableVector.hpp"
-
-inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
-    if (abs(vec.x) > abs(vec.y)) {
-        return {vec.x, 0};
-    } else {
-        return {0, vec.y};
-    }
-}
-
-inline float mag(const sf::Vector2f& vec) { return std::sqrt(vec.x * vec.x + vec.y * vec.y); }
-inline float mag(const sf::Vector2i& vec) {
-    return static_cast<float>(std::sqrt(vec.x * vec.x + vec.y * vec.y));
-}
 
 struct PortInst {
     Direction    portDir;
@@ -200,6 +187,22 @@ class ConnectionNetwork {
     void                      remove();
 };
 
+using ObjAtCoordVar = std::variant<std::monostate, Connection, std::pair<Connection, Connection>,
+                                   PortRef, Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
+enum struct ObjAtCoordType : std::size_t {
+    Empty    = 0,
+    Con      = 1,
+    ConCross = 2,
+    Port     = 3,
+    Node     = 4,
+    Gate     = 5,
+    Block    = 6
+};
+inline static constexpr std::array<std::string, 7> ObjAtCoordStrings{
+    "empty", "connection", "conn crossing", "port", "node", "gate", "block"}; // for debugging
+
+inline ObjAtCoordType typeOf(const ObjAtCoordVar& ref) { return ObjAtCoordType{ref.index()}; }
+
 struct Block {
     std::size_t size = 100;
     std::string name;
@@ -215,5 +218,10 @@ struct Block {
     const PortInst&               getPort(const PortRef& port) const;
     PortType                      getPortType(const PortRef& port) const;
     std::pair<PortType, PortType> getPortType(const Connection& con) const;
-    bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
+    bool                  collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
+    void                  splitCon(const Connection& con, Ref<Node> node);
+    void                  makeOverlapNodes(const Connection& con, Ref<ClosedNet> net);
+    [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
+                                         Direction dirIntoPort);
+    ObjAtCoordVar         whatIsAtCoord(const sf::Vector2i& coord) const;
 };
