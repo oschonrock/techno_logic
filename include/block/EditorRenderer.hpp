@@ -220,10 +220,11 @@ class EditorRenderer {
                 ImGuiTableFlags_SizingStretchSame |
                 ImGuiTableFlags_Resizable; // ImGuiTableFlags_NoHostExtendX |
                                            // ImGuiTableFlags_SizingFixedFit
-            if (ImGui::BeginTable("Connections", 3, flags)) {
+            if (ImGui::BeginTable("Connections", 4, flags)) {
                 ImGui::TableSetupColumn("Network");
-                ImGui::TableSetupColumn("Port1");
-                ImGui::TableSetupColumn("Port2");
+                ImGui::TableSetupColumn("Input");
+                ImGui::TableSetupColumn("Output");
+                ImGui::TableSetupColumn("Connections");
                 ImGui::TableHeadersRow();
                 int netCount = 1;
                 for (const auto& net: block.conNet.nets) {
@@ -242,34 +243,61 @@ class EditorRenderer {
                         ImGui::SetTooltip("Debug net");
                     }
                     if (netOpen) {
-                        std::size_t conCount = 1;
-                        for (const auto& con: net.obj) {
-                            if (conCount != 1) {
+                        ImGui::TableSetColumnIndex(1);
+                        if (net.obj.hasInput()) {
+                            ImGui::Selectable(
+                                PortObjRefStrings[net.obj.getInput().value().ref.index()].c_str());
+                        } else {
+                            ImGui::TextDisabled("none");
+                        }
+                        const auto& outputs = net.obj.getOutputs();
+                        if (outputs.empty()) {
+                            ImGui::TableSetColumnIndex(2);
+                            ImGui::TextDisabled("none");
+                        }
+                        bool isFirst  = true;
+                        auto conIt    = net.obj.begin();
+                        auto outputIt = outputs.begin();
+                        while (conIt != net.obj.end() || outputIt != outputs.end()) {
+                            if (isFirst) {
+                                isFirst = false;
+                            } else {
                                 ImGui::TableNextRow();
                             }
-
-                            ImGui::TableSetColumnIndex(1);
-                            ImGui::Selectable(PortObjRefStrings[con.portRef1.ref.index()].c_str(),
-                                              debugNetHovered);
-                            if (ImGui::IsItemHovered() &&
-                                typeOf(con.portRef1) == PortObjType::Node) {
-                                debugNode = std::get<Ref<Node>>(con.portRef1.ref);
-                                debugCon  = con;
-                                ImGui::SetTooltip("Debug node and con");
+                            if (outputIt != outputs.end()) {
+                                ImGui::TableSetColumnIndex(2);
+                                ImGui::Selectable(PortObjRefStrings[outputIt->ref.index()].c_str());
                             }
-
-                            ImGui::TableNextColumn();
-                            ImGui::Selectable(PortObjRefStrings[con.portRef2.ref.index()].c_str(),
-                                              debugNetHovered);
-                            if (ImGui::IsItemHovered() && typeOf(con.portRef2) == PortObjType::Node) {
-                                debugNode = std::get<Ref<Node>>(con.portRef2.ref);
-                                debugCon  = con;
-                                ImGui::SetTooltip("Debug node and con");
+                            if (conIt != net.obj.end()) {
+                                ImGui::TableSetColumnIndex(3);
+                                ImGui::Selectable(
+                                    PortObjRefStrings[conIt->portRef1.ref.index()].c_str(),
+                                    debugNetHovered, 0,
+                                    {ImGui::GetContentRegionAvail().x / 2.0f,
+                                     ImGui::GetTextLineHeight()});
+                                if (ImGui::IsItemHovered() &&
+                                    typeOf(conIt->portRef1) == PortObjType::Node) {
+                                    debugNode = std::get<Ref<Node>>(conIt->portRef1.ref);
+                                    debugCon  = *conIt;
+                                    ImGui::SetTooltip("Debug node and con");
+                                }
+                                ImGui::SameLine();
+                                ImGui::Selectable(
+                                    PortObjRefStrings[conIt->portRef2.ref.index()].c_str(),
+                                    debugNetHovered);
+                                if (ImGui::IsItemHovered() &&
+                                    typeOf(conIt->portRef2) == PortObjType::Node) {
+                                    debugNode = std::get<Ref<Node>>(conIt->portRef2.ref);
+                                    debugCon  = *conIt;
+                                    ImGui::SetTooltip("Debug node and con");
+                                }
+                                ++conIt;
                             }
-                            ++conCount;
                         }
                         ImGui::TreePop();
                     } else {
+                        ImGui::TableNextColumn();
+                        ImGui::TextDisabled("...");
                         ImGui::TableNextColumn();
                         ImGui::TextDisabled("...");
                         ImGui::TableNextColumn();
