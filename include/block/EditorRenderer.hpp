@@ -12,25 +12,24 @@
 // editor renderer contains const& to editor and is only responsible for displaying its internal
 // state
 class EditorRenderer {
-    static constexpr float defaultViewSize = 35;
-    static constexpr float zoomFact        = 1.05f;
-    static constexpr float nameScale       = 1.5f;
-    static constexpr float crossSize       = 0.1f;
-    static constexpr float nodeRad         = 0.1f;
-    static constexpr float hlRad           = 0.1f;
-    sf::Color              gridColour{255, 255, 255, 70};
-    sf::Color              indicatorColour{255, 255, 255, 100};
-    sf::Color              nodeColour         = sf::Color::White;
-    sf::Color              conColour          = sf::Color::White;
-    sf::Color              newConColour       = sf::Color::Blue;
-    sf::Color              highlightConColour = sf::Color::Green;
-    sf::Color              errorColour        = sf::Color::Red;
-    sf::Color              debugConColour     = sf::Color::Magenta;
-    sf::Color              debugNodeColour    = sf::Color::Yellow;
+    bool      isGridCrosses   = false;
+    float     defaultViewSize = 35;
+    float     zoomFact        = 1.05f;
+    float     nameScale       = 1.5f;
+    float     crossSize       = 0.1f;
+    float     nodeRad         = 0.1f;
+    float     hlRad           = 0.1f;
+    sf::Color gridColour{255, 255, 255, 70};
+    sf::Color indicatorColour{255, 255, 255, 100};
+    sf::Color nodeColour         = sf::Color::White;
+    sf::Color conColour          = sf::Color::White;
+    sf::Color newConColour       = sf::Color::Blue;
+    sf::Color highlightConColour = sf::Color::Green;
+    sf::Color errorColour        = sf::Color::Red;
+    sf::Color debugConColour     = sf::Color::Magenta;
+    sf::Color debugNodeColour    = sf::Color::Yellow;
 
     const sf::Font& font;
-
-    float vsScale;
 
     const Editor&     editor;
     const Block&      block;
@@ -39,7 +38,6 @@ class EditorRenderer {
     sf::Vector2u      prevWindowSize;
 
     std::vector<sf::Vertex>   gridVerts;
-    bool                      isGridCrosses = false;
     std::array<sf::Vertex, 5> borderVerts;
     sf::CircleShape           mouseIndicator{hlRad};
     sf::Text                  name;
@@ -56,7 +54,7 @@ class EditorRenderer {
     std::optional<Ref<ClosedNet>>               debugNet;
 
     void setViewDefault() {
-        vsScale =
+        float vsScale =
             static_cast<float>(std::min(window.getSize().x, window.getSize().y)) / defaultViewSize;
 
         view = window.getDefaultView();
