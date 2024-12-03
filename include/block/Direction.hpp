@@ -58,6 +58,22 @@ inline bool isVecBetween(const sf::Vector2i& vec, const sf::Vector2i& end1,
     return mag1 + mag2 == magPolar(end2 - end1);
 }
 
+inline bool doLinesCross(const std::pair<sf::Vector2i, sf::Vector2i>& line1,
+                         const std::pair<sf::Vector2i, sf::Vector2i>& line2) {
+    auto diff1 = line1.second - line1.first;
+    auto diff2 = line2.second - line2.first;
+    assert(isVecHoriVert(diff1));
+    assert(isVecHoriVert(diff2));
+    auto dir1 = vecToDir(diff1);
+    auto dir2 = vecToDir(diff2);
+    if (dir1 == dir2 || dir1 == reverseDir(dir2)) return false; // if parralel
+    auto dt = dot(diff1, line2.first - line1.first);
+    if (!(dt > 0 && dt < (magPolar(diff1) ^ 2))) return false; // line 2 not between line 1
+    dt = dot(diff2, line1.first - line2.first);
+    if (!(dt > 0 && dt < (magPolar(diff2) ^ 2))) return false; // line 1 not between line 2
+    return true;
+}
+
 // inline bool isVecInDir(const sf::Vector2i& vec, Direction dir) {
 //     assert(isVecHoriVert(vec));
 //     return dot(vec, dirToVec(dir)) > 0; // if dot prouct > 0 then must be in same dir

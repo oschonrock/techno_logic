@@ -323,7 +323,7 @@ class EditorRenderer {
         window.draw(borderVerts.data(), borderVerts.size(), sf::PrimitiveType::LineStrip);
 
         // draw connections
-        std::vector<sf::Vertex> conVerts{};
+        std::vector<sf::Vertex> connectionVerts{};
         for (const auto& net: block.conNet.nets) {
             sf::Color col = conColour;
             if (debugNet && debugNet.value() == net.ind) // sneaky debug overlay... rest down
@@ -334,11 +334,13 @@ class EditorRenderer {
             }
 
             for (const auto& con: net.obj) {
-                conVerts.emplace_back(sf::Vector2f(block.getPort(con.portRef1).portPos), col);
-                conVerts.emplace_back(sf::Vector2f(block.getPort(con.portRef2).portPos), col);
+                connectionVerts.emplace_back(sf::Vector2f(block.getPort(con.portRef1).portPos),
+                                             col);
+                connectionVerts.emplace_back(sf::Vector2f(block.getPort(con.portRef2).portPos),
+                                             col);
             }
         }
-        window.draw(conVerts.data(), conVerts.size(), sf::PrimitiveType::Lines);
+        window.draw(connectionVerts.data(), connectionVerts.size(), sf::PrimitiveType::Lines);
 
         // draw nodes
         for (const auto& node: block.nodes) {
@@ -358,16 +360,10 @@ class EditorRenderer {
         case Editor::EditorState::Connecting:
             if (editor.conEndLegal) {
                 drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos, newConColour);
+                drawNode(editor.conEndPos, 1.2f * nodeRad, newConColour);
             }
-            switch (typeOf(editor.conStartObjVar)) {
-            case ObjAtCoordType::Con:
-            case ObjAtCoordType::Empty: {
-                drawNode(editor.conStartPos, 1.2f * nodeRad,
-                         editor.conEndLegal ? newConColour : errorColour);
-            }
-            default: // errors
-                break;
-            }
+            drawNode(editor.conStartPos, 1.2f * nodeRad,
+                     editor.conEndLegal ? newConColour : errorColour);
         }
 
         // Debug overlays
