@@ -18,6 +18,7 @@ class EditorRenderer {
     float     nameScale       = 1.5f;
     float     crossSize       = 0.1f;
     float     nodeRad         = 0.1f;
+    float     newNodeScale    = 1.5f;
     float     hlRad           = 0.1f;
     sf::Color gridColour{255, 255, 255, 70};
     sf::Color indicatorColour{255, 255, 255, 100};
@@ -358,10 +359,17 @@ class EditorRenderer {
         case Editor::EditorState::Connecting:
             if (editor.conEndLegal) {
                 drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos, newConColour);
-                drawNode(editor.conEndPos, 1.2f * nodeRad, newConColour);
+                drawNode(editor.conEndPos, newNodeScale * nodeRad, newConColour);
             }
-            drawNode(editor.conStartPos, 1.2f * nodeRad,
+            drawNode(editor.conStartPos, newNodeScale * nodeRad,
                      editor.conEndLegal ? newConColour : errorColour);
+            ImGui::Begin("Overlaps");
+            ImGui::Text("Count: %zu", editor.overlapPos.size());
+            for (const auto& pos: editor.overlapPos) {
+                drawNode(pos, nodeRad * newNodeScale, newConColour);
+                ImGui::Text("(%i,%i)", pos.x, pos.y);
+            }
+            ImGui::End();
         }
 
         // Debug overlays
@@ -370,13 +378,13 @@ class EditorRenderer {
             for (const auto& con: net) {
                 // potentially multi draw when multi connected port
                 auto port = block.getPort(con.portRef1);
-                drawNode(port.portPos, nodeRad * 1.2f, debugNodeColour);
+                drawNode(port.portPos, nodeRad * newNodeScale, debugNodeColour);
                 port = block.getPort(con.portRef2);
-                drawNode(port.portPos, nodeRad * 1.2f, debugNodeColour);
+                drawNode(port.portPos, nodeRad * newNodeScale, debugNodeColour);
             }
         }
         if (debugNode) { // draw debug node over top
-            drawNode(block.nodes[debugNode.value()].pos, 1.2f * nodeRad, debugNodeColour);
+            drawNode(block.nodes[debugNode.value()].pos, newNodeScale * nodeRad, debugNodeColour);
         }
         if (debugCon) { // draw debug con over top
             drawSingleLine(lineVertecies, block.getPort(debugCon->portRef1).portPos,

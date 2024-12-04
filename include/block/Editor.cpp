@@ -85,16 +85,11 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
                 break;
             }
 
-            PortRef startPort =
-                block.makeNewPortRef(conStartObjVar, conStartPos, vecToDir(conStartPos - conEndPos));
+            PortRef startPort = block.makeNewPortRef(conStartObjVar, conStartPos,
+                                                     vecToDir(conStartPos - conEndPos));
             PortRef endPort =
                 block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
             Connection con{startPort, endPort};
-
-            std::cout << "start net:\n";
-            if (conStartCloNet) block.makeOverlapNodes(con, conStartCloNet.value());
-            std::cout << "end net:\n";
-            if (conEndCloNet) block.makeOverlapNodes(con, conEndCloNet.value());
 
             block.conNet.insert(con, conStartCloNet, conEndCloNet, block.getPortType(con));
             state = EditorState::Idle;
@@ -194,9 +189,28 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         default:
             break;
         }
-        if (conStartPos != conEndPos && conStartCloNet && conEndCloNet &&
-            conStartCloNet.value() == conEndCloNet.value()) {
-            ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
+        overlapPos.clear();
+        if (conStartPos != conEndPos) {
+            if (conStartCloNet && conEndCloNet) {
+                if (conStartCloNet.value() == conEndCloNet.value()) {
+                    ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
+                }
+                for (const auto& overlap:
+                     block.getOverlapNodes(conStartCloNet.value(), conEndCloNet.value()))
+                    overlapPos.emplace_back(overlap.pos);
+            }
+            if (conStartCloNet) {
+                for (const auto& pos:
+                     block.getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
+                    overlapPos.emplace_back(pos);
+                }
+            }
+            if (conEndCloNet) {
+                for (const auto& pos:
+                     block.getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
+                    overlapPos.emplace_back(pos);
+                }
+            }
         }
         break;
     }

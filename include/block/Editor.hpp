@@ -26,6 +26,7 @@ class Editor {
     std::optional<Ref<ClosedNet>> conEndCloNet;
     bool                          conStartLegal;
     bool                          conEndLegal;
+    std::vector<sf::Vector2i>     overlapPos;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const; // should be in block
     void         event(const sf::Event& event, const sf::Vector2i& mousePos);
