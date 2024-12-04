@@ -1,27 +1,14 @@
 #pragma once
 
 #include <SFML/Window/Event.hpp>
-#include <string>
 
 #include "Block.hpp"
-
-inline bool isCoordConType(const ObjAtCoordVar& ref) {
-    switch (ObjAtCoordType(ref.index())) {
-    case ObjAtCoordType::Empty:
-    case ObjAtCoordType::Con:
-    case ObjAtCoordType::Port:
-    case ObjAtCoordType::Node:
-        return true;
-    default:
-        return false;
-    }
-}
 
 // Editor is responsible for storing and updating the state of the editor gui
 class Editor {
   private:
-    bool          isPosLegalEnd(const sf::Vector2i& pos) const;
-    bool          isPosLegalStart(const sf::Vector2i& start) const;
+    bool isPosLegalEnd(const sf::Vector2i& pos) const;
+    bool isPosLegalStart(const sf::Vector2i& start) const;
 
   public:
     Editor(Block& block_) : block(block_) {}

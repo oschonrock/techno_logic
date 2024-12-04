@@ -184,10 +184,10 @@ void Block::makeOverlapNodes(const Connection& con, Ref<ClosedNet> netRef) {
     for (const auto& intersec: intersections) {
         std::cout << "Intersection found at (" << intersec.second.x << "," << intersec.second.y
                   << ")\n";
-        auto netCon = intersec.first;
-        auto node   = nodes.insert(Node{intersec.second});
-        splitCon(netCon, node);
-        splitCon(con, node);
+        // auto netCon = intersec.first;
+        // auto node   = nodes.insert(Node{intersec.second});
+        // splitCon(netCon, node);
+        // splitCon(con, node);
     }
 }
 

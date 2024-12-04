@@ -116,7 +116,7 @@ class ClosedNet {
 
     // const iterator to loop over connections
     struct Iterator {
-        using iterator_category = std::forward_iterator_tag;
+        using iterator_category = std::input_iterator_tag;
         using difference_type   = std::ptrdiff_t;
         using value_type        = Connection;
         using pointer           = const Connection*; // or also value_type*
@@ -124,7 +124,7 @@ class ClosedNet {
 
         using MapIt = absl::flat_hash_map<PortRef, PortRef>::const_iterator;
         Iterator()  = delete;
-        Iterator(MapIt it, MapIt end) : it_(it), end_(end), con(it->first, it->second) {}
+        Iterator(MapIt it, MapIt end) : it_(it), end_(end), con(it_->first, it_->second) {}
         Iterator(MapIt it, Connection placeholderCon) : it_(it), con(placeholderCon) {}
 
         [[nodiscard]] reference operator*() const { return con; }
@@ -203,6 +203,18 @@ inline static constexpr std::array<std::string, 7> ObjAtCoordStrings{
 
 inline ObjAtCoordType typeOf(const ObjAtCoordVar& ref) { return ObjAtCoordType{ref.index()}; }
 
+inline bool isCoordConType(const ObjAtCoordVar& ref) {
+    switch (ObjAtCoordType(ref.index())) {
+    case ObjAtCoordType::Empty:
+    case ObjAtCoordType::Con:
+    case ObjAtCoordType::Port:
+    case ObjAtCoordType::Node:
+        return true;
+    default:
+        return false;
+    }
+}
+
 struct Block {
     std::size_t size = 100;
     std::string name;
@@ -218,10 +230,12 @@ struct Block {
     const PortInst&               getPort(const PortRef& port) const;
     PortType                      getPortType(const PortRef& port) const;
     std::pair<PortType, PortType> getPortType(const Connection& con) const;
-    bool                  collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
-    void                  splitCon(const Connection& con, Ref<Node> node);
-    void                  makeOverlapNodes(const Connection& con, Ref<ClosedNet> net);
-    [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                         Direction dirIntoPort);
-    ObjAtCoordVar         whatIsAtCoord(const sf::Vector2i& coord) const;
+    bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
+    void splitCon(const Connection& con, Ref<Node> node);
+    std::vector<sf::Vector2i>   getOverlapNodes(const Connection& con, Ref<ClosedNet> net);
+    std::vector<sf::Vector2i>   getOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2);
+    void                        makeOverlapNodes(const Connection& con, Ref<ClosedNet> net);
+    [[nodiscard]] PortRef       makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
+                                               Direction dirIntoPort);
+    [[nodiscard]] ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord) const;
 };
