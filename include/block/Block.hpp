@@ -226,7 +226,7 @@ struct Block {
     ConnectionNetwork       conNet;
     std::vector<Port>       ports;
 
-    struct overlapPoint {
+    struct OverlapPoint {
         Connection   con1;
         Connection   con2;
         sf::Vector2i pos;
@@ -238,11 +238,13 @@ struct Block {
     std::pair<PortType, PortType> getPortType(const Connection& con) const;
     bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
     void splitCon(const Connection& con, Ref<Node> node);
-    std::vector<sf::Vector2i> getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
-                                            Ref<ClosedNet>                        netRef) const;
-    std::vector<overlapPoint> getOverlapNodes(const Connection& con, Ref<ClosedNet> net) const;
-    std::vector<overlapPoint> getOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const;
-    void makeOverlapNodes(const std::vector<Block::overlapPoint>& points, Ref<ClosedNet> netRef);
+    [[nodiscard]] std::vector<sf::Vector2i>
+    getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line, Ref<ClosedNet> netRef) const;
+    [[nodiscard]] std::vector<sf::Vector2i> getOverlapPos(Ref<ClosedNet> net1,
+                                                          Ref<ClosedNet> net2) const;
+    void                                    makeOverlapNode(const OverlapPoint& overlap);
+    void                        makeOverlapNodes(const Connection& con, Ref<ClosedNet> net);
+    void                        makeOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2);
     [[nodiscard]] PortRef       makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
                                                Direction dirIntoPort);
     [[nodiscard]] ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord) const;

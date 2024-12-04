@@ -91,7 +91,11 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
                 block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
             Connection con{startPort, endPort};
 
+            if (conStartCloNet && conEndCloNet)
+                block.makeOverlapNodes(conStartCloNet.value(), conEndCloNet.value());
             block.conNet.insert(con, conStartCloNet, conEndCloNet, block.getPortType(con));
+            if (conStartCloNet) block.makeOverlapNodes(con, conStartCloNet.value());
+            if (conEndCloNet) block.makeOverlapNodes(con, conEndCloNet.value());
             state = EditorState::Idle;
             conEndCloNet.reset();
             break;
@@ -135,6 +139,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             const auto& port     = block.getPort(std::get<PortRef>(conStartObjVar));
             int         bestDist = std::clamp(dot(port.portDir, diff), 0, INT_MAX);
             newEndProp           = conStartPos + (dirToVec(port.portDir) * bestDist);
+            break;
         }
         case ObjAtCoordType::Node: { // finds best available direction
             // TODO maybe should just be handled by legal check
@@ -194,10 +199,11 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             if (conStartCloNet && conEndCloNet) {
                 if (conStartCloNet.value() == conEndCloNet.value()) {
                     ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
+                } else {
+                    for (const auto& overlap:
+                         block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value()))
+                        overlapPos.emplace_back(overlap);
                 }
-                for (const auto& overlap:
-                     block.getOverlapNodes(conStartCloNet.value(), conEndCloNet.value()))
-                    overlapPos.emplace_back(overlap.pos);
             }
             if (conStartCloNet) {
                 for (const auto& pos:

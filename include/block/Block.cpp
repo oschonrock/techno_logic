@@ -127,7 +127,9 @@ PortInst& Block::getPort(const PortRef& port) {
     case PortObjType::BlockInst:
         return blockInstances[std::get<Ref<BlockInst>>(port.ref)].ports[port.portNum];
     }
+    throw std::logic_error("Port type not handled in getPort");
 }
+
 const PortInst& Block::getPort(const PortRef& port) const {
     switch (typeOf(port.ref)) {
     case PortObjType::Node:
@@ -137,6 +139,7 @@ const PortInst& Block::getPort(const PortRef& port) const {
     case PortObjType::BlockInst:
         return blockInstances[std::get<Ref<BlockInst>>(port.ref)].ports[port.portNum];
     }
+    throw std::logic_error("Port type not handled in getPort");
 }
 
 PortType Block::getPortType(const PortRef& port) const {
@@ -148,6 +151,7 @@ PortType Block::getPortType(const PortRef& port) const {
     case PortObjType::BlockInst:
         throw std::runtime_error("Block::getPortType not implemented for BlockInst yet");
     }
+    throw std::logic_error("Port type not handled in getPortType");
 }
 
 std::pair<PortType, PortType> Block::getPortType(const Connection& con) const {
@@ -159,54 +163,62 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
 }
 
 void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
-    assert(conNet.contains(oldCon) && !conNet.contains(node));
+    assert(conNet.contains(oldCon));
     auto&     net = conNet.nets[conNet.getClosNetRef(oldCon.portRef1).value()];
     Direction dir = vecToDir(nodes[node].pos - getPort(oldCon.portRef1).portPos);
     // TODO implement by swapping order and calling conNet instead
     net.erase(oldCon, getPortType(oldCon));
     auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
+    assert(!conNet.contains(con.portRef2));
     net.insert(con, getPortType(con));
     con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
+    assert(!conNet.contains(con.portRef2));
     net.insert(con, getPortType(con));
+}
+
+void Block::makeOverlapNode(const Block::OverlapPoint& overlap) {
+    auto node = nodes.insert(Node(overlap.pos));
+    splitCon(overlap.con1, node);
+    splitCon(overlap.con2, node);
+}
+
+void Block::makeOverlapNodes(const Connection& con, Ref<ClosedNet> net) {
+    std::vector<OverlapPoint> overlaps{};
+    for (const auto& netCon: conNet.nets[net]) { // find overlaps
+        auto intersec = getLineIntersection(
+            {getPort(con.portRef1).portPos, getPort(con.portRef2).portPos},
+            {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
+        if (intersec) overlaps.emplace_back(con, netCon, intersec.value());
+    }
+    for (const auto& overlap: overlaps) { // make overlaps
+        makeOverlapNode(overlap);
+    }
+}
+
+void Block::makeOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2) {
+    for (const auto& con: conNet.nets[net1]) makeOverlapNodes(con, net2);
 }
 
 std::vector<sf::Vector2i> Block::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
                                                Ref<ClosedNet>                        netRef) const {
     std::vector<sf::Vector2i> pos{};
     for (const auto& netCon: conNet.nets[netRef]) {
-        std::pair<sf::Vector2i, sf::Vector2i> netConPositions{getPort(netCon.portRef1).portPos,
-                                                              getPort(netCon.portRef2).portPos};
-        auto                                  intersec = getLineIntersection(line, netConPositions);
+        auto intersec = getLineIntersection(
+            line, {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
         if (intersec) pos.emplace_back(intersec.value());
     }
     return pos;
 }
 
-std::vector<Block::overlapPoint> Block::getOverlapNodes(const Connection& con,
-                                                        Ref<ClosedNet>    netRef) const {
-    std::vector<overlapPoint>             intersections{};
-    auto&                                 net          = conNet.nets[netRef];
-    std::pair<sf::Vector2i, sf::Vector2i> conPositions = {getPort(con.portRef1).portPos,
-                                                          getPort(con.portRef2).portPos};
-    for (const auto& netCon: net) {
-        std::pair<sf::Vector2i, sf::Vector2i> netConPositions{getPort(netCon.portRef1).portPos,
-                                                              getPort(netCon.portRef2).portPos};
-        auto intersec = getLineIntersection(conPositions, netConPositions);
-        if (intersec) intersections.emplace_back(con, netCon, intersec.value());
-    }
-    return intersections;
-}
-
-std::vector<Block::overlapPoint> Block::getOverlapNodes(Ref<ClosedNet> net1,
-                                                        Ref<ClosedNet> net2) const {
-    std::vector<overlapPoint> intersections{};
+std::vector<sf::Vector2i> Block::getOverlapPos(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const {
+    std::vector<sf::Vector2i> pos{};
     for (const auto& con1: conNet.nets[net1]) {
-        for (const auto& overlap: getOverlapNodes(con1, net2)) intersections.emplace_back(overlap);
+        auto con1Pos =
+            getOverlapPos({getPort(con1.portRef1).portPos, getPort(con1.portRef2).portPos}, net2);
+        for (const auto& intersecPos: con1Pos) pos.emplace_back(intersecPos);
     }
-    return intersections;
+    return pos;
 }
-
-// void Block::makeOverlapNodes(const std::vector<Block::overlapPoint>& points) {}
 
 // Returns ref to port at location
 // If there isn't one creates one according to what's currently there;

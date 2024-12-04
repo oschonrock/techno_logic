@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cstddef>
 #include <optional>
+#include <stdexcept>
+
 enum struct Direction : std::size_t { up = 0, down = 1, left = 2, right = 3 };
 
 inline sf::Vector2i dirToVec(Direction dir) {
@@ -18,6 +20,7 @@ inline sf::Vector2i dirToVec(Direction dir) {
     case Direction::right:
         return {1, 0};
     }
+    throw std::logic_error("Should be unreachable dirToVec");
 }
 
 // note 0,0 = false
