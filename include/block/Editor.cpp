@@ -13,7 +13,7 @@ bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
     if (typeOf(obj) == ObjAtCoordType::Node) {
         auto node    = std::get<Ref<Node>>(obj);
         auto portNum = static_cast<std::size_t>(vecToDir(conStartPos - end));
-        if (block.conNet.contains(PortRef{node, portNum})) {
+        if (block.contains(PortRef{node, portNum})) {
             ImGui::SetTooltip("Node already has connection in this direction");
             return false;
         }
@@ -44,7 +44,7 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
         return false;
     }
     if (typeOf(obj) == ObjAtCoordType::Node &&
-        block.conNet.getNodeConCount(std::get<Ref<Node>>(obj)) == 4) {
+        block.getNodeConCount(std::get<Ref<Node>>(obj)) == 4) {
         ImGui::SetTooltip("Node already has 4 connections");
         return false;
     }
@@ -119,7 +119,7 @@ void Editor::event(const sf::Event& event) {
                 block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
             Connection con{startPort, endPort};
 
-            block.conNet.insert(con, conStartCloNet, conEndCloNet, block.getPortType(con));
+            block.insertCon(con, conStartCloNet, conEndCloNet);
             // net refs invalidated in case of network combination
             conEndCloNet.reset();
             conStartCloNet.reset();
@@ -143,18 +143,18 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         // if network component find network
         switch (typeOf(conStartObjVar)) { // TODO maybe make own function
         case ObjAtCoordType::Node: {
-            conStartCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conStartObjVar));
+            conStartCloNet = block.getClosNetRef(std::get<Ref<Node>>(conStartObjVar));
             break;
         }
         case ObjAtCoordType::Con: {
             conStartCloNet =
-                block.conNet.getClosNetRef(std::get<Connection>(conStartObjVar).portRef1);
+                block.getClosNetRef(std::get<Connection>(conStartObjVar).portRef1);
             break;
         }
         case ObjAtCoordType::ConCross: {
             auto conPair   = std::get<std::pair<Connection, Connection>>(conStartObjVar);
-            conStartCloNet = block.conNet.getClosNetRef(conPair.first.portRef1);
-            conEndCloNet   = block.conNet.getClosNetRef(conPair.second.portRef1);
+            conStartCloNet = block.getClosNetRef(conPair.first.portRef1);
+            conEndCloNet   = block.getClosNetRef(conPair.second.portRef1);
             overlapPos     = block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
             overlapPos.erase(std::remove(overlapPos.begin(), overlapPos.end(), conStartPos));
             break;
@@ -182,9 +182,9 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             const auto& node     = block.nodes[nodeRef];
             auto        bestPort = std::max_element(
                 node.ports.begin(), node.ports.end(), [&](const auto& max, const auto& elem) {
-                    bool isElemPortInUse = block.conNet.contains(
+                    bool isElemPortInUse = block.contains(
                         PortRef(nodeRef, static_cast<std::size_t>(elem.portDir)));
-                    bool isMaxPortInUse = block.conNet.contains(
+                    bool isMaxPortInUse = block.contains(
                         PortRef(nodeRef, static_cast<std::size_t>(max.portDir)));
                     return isMaxPortInUse ||
                            (dot(max.portDir, diff) < dot(elem.portDir, diff) && !isElemPortInUse);
@@ -219,11 +219,11 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         conEndObjVar = block.whatIsAtCoord(conEndPos);
         switch (typeOf(conEndObjVar)) { // if network component find closednet
         case ObjAtCoordType::Node: {
-            conEndCloNet = block.conNet.getClosNetRef(std::get<Ref<Node>>(conEndObjVar));
+            conEndCloNet = block.getClosNetRef(std::get<Ref<Node>>(conEndObjVar));
             break;
         }
         case ObjAtCoordType::Con: {
-            conEndCloNet = block.conNet.getClosNetRef(std::get<Connection>(conEndObjVar).portRef1);
+            conEndCloNet = block.getClosNetRef(std::get<Connection>(conEndObjVar).portRef1);
             break;
         }
         default:

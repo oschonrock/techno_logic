@@ -222,7 +222,7 @@ class EditorRenderer {
                 ImGui::TableSetupColumn("Connections");
                 ImGui::TableHeadersRow();
                 int netCount = 1;
-                for (const auto& net: block.conNet.nets) {
+                for (const auto& net: block.nets) {
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
                     ImGui::PushID(netCount);
@@ -319,7 +319,7 @@ class EditorRenderer {
 
         // draw connections
         std::vector<sf::Vertex> connectionVerts{};
-        for (const auto& net: block.conNet.nets) {
+        for (const auto& net: block.nets) {
             sf::Color col = conColour;
             if (debugNet && debugNet.value() == net.ind) // sneaky debug overlay... rest down
                 col = debugConColour;
@@ -339,7 +339,7 @@ class EditorRenderer {
 
         // draw nodes
         for (const auto& node: block.nodes) {
-            if (block.conNet.getNodeConCount(node.ind) != 2) {
+            if (block.getNodeConCount(node.ind) != 2) {
                 drawNode(node.obj.pos, nodeRad, nodeColour);
             };
         }
@@ -373,7 +373,7 @@ class EditorRenderer {
 
         // Debug overlays
         if (debugNet) { // draw debug nodes over top
-            const auto& net = block.conNet.nets[debugNet.value()];
+            const auto& net = block.nets[debugNet.value()];
             for (const auto& con: net) {
                 // potentially multi draw when multi connected port
                 auto port = block.getPort(con.portRef1);

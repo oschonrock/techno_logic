@@ -169,30 +169,3 @@ class ClosedNet {
         return Iterator(conMap.end(), Connection(*begin()));
     }
 };
-
-class ConnectionNetwork {
-  private:
-    void copyConnectedPorts(Block& block, const ClosedNet& sourceNet, ClosedNet& destNet,
-                            const PortRef& port);
-
-  public:
-    StableVector<ClosedNet> nets{};
-    void                    insert(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
-                                   const std::optional<Ref<ClosedNet>>& net2,
-                                   const std::pair<PortType, PortType>& portTypes);
-
-    template <typename T>
-    // try to call this with ports over nodes if you have the port
-    [[nodiscard]] std::optional<Ref<ClosedNet>> getClosNetRef(const T& obj) const {
-        for (const auto& net: nets) {
-            if (net.obj.contains(obj)) return net.ind;
-        }
-        return {};
-    }
-    template <typename T>
-    [[nodiscard]] bool contains(const T& obj) const {
-        return getClosNetRef(obj).has_value();
-    }
-    [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const;
-    void                      remove();
-};

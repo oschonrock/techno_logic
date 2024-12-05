@@ -63,59 +63,22 @@ void ClosedNet::erase(const Connection& con, const std::pair<PortType, PortType>
     throw std::logic_error("Port not connected to closed net. Did you call contains?");
 }
 
-void ConnectionNetwork::insert(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
-                               const std::optional<Ref<ClosedNet>>& net2,
-                               const std::pair<PortType, PortType>& portTypes) {
-    if (!net1 && !net2) { // make new closed network
-        auto netRef = nets.insert(ClosedNet{});
-        nets[netRef].insert(con, portTypes);
-        return;
-    }
-    if (net1 && net2) { // connecting two existing networks
-        auto net1Ref = net1.value();
-        auto net2Ref = net2.value();
-        if (net1Ref == net2Ref) { // making loop within closed network
-            nets[net1Ref].insert(con, portTypes);
-            return;
-        } else { // connecting two closed networks
-            if (nets[net1Ref].getSize() < nets[net2Ref].getSize()) std::swap(net1Ref, net2Ref);
-            // net1 is now the bigger of the two
-            nets[net1Ref] += nets[net2Ref];
-            nets.erase(net2Ref);
-            nets[net1Ref].insert(con, portTypes);
-            return;
-        }
-    }
-    // extending network
-    nets[net1 ? net1.value() : net2.value()].insert(con, portTypes);
-    return;
-}
-
-[[nodiscard]] std::size_t ConnectionNetwork::getNodeConCount(const Ref<Node>& node) const {
-    const auto& net   = nets[getClosNetRef(node).value()]; // connection assumed because node
-    std::size_t count = 0;
-    for (std::size_t port = 0; port < 4; ++port) {
-        if (net.contains(PortRef{node, port})) ++count;
-    }
-    return count;
-}
-
 // Block
 bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) const {
     return isVecBetween(coord, getPort(con.portRef1).portPos, getPort(con.portRef2).portPos);
 }
 
 void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
-    assert(conNet.contains(oldCon));
-    auto&     net = conNet.nets[conNet.getClosNetRef(oldCon.portRef1).value()];
+    assert(contains(oldCon));
+    auto&     net = nets[getClosNetRef(oldCon.portRef1).value()];
     Direction dir = vecToDir(nodes[node].pos - getPort(oldCon.portRef1).portPos);
-    // TODO implement by swapping order and calling conNet instead
+    // TODO implement by calling insert first
     net.erase(oldCon, getPortType(oldCon));
     auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
-    assert(!conNet.contains(con.portRef2));
+    assert(!contains(con.portRef2));
     net.insert(con, getPortType(con));
     con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
-    assert(!conNet.contains(con.portRef2));
+    assert(!contains(con.portRef2));
     net.insert(con, getPortType(con));
 }
 
@@ -141,9 +104,9 @@ void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
     case ObjAtCoordType::Node: { // if redundant delete node else return port
         Ref<Node> node = std::get<Ref<Node>>(var);
         PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
-        auto      parralelPortNet = conNet.getClosNetRef(port);
-        if (parralelPortNet && conNet.getNodeConCount(node) == 1) { // if node is redundant
-            auto& net          = conNet.nets[parralelPortNet.value()];
+        auto      parralelPortNet = getClosNetRef(port);
+        if (parralelPortNet && getNodeConCount(node) == 1) { // if node is redundant
+            auto& net          = nets[parralelPortNet.value()];
             auto  redundantCon = net.getCon(port);
             net.erase(redundantCon, getPortType(redundantCon));
             nodes.erase(node);
@@ -198,38 +161,6 @@ std::pair<PortType, PortType> Block::getPortType(const Connection& con) const {
     return std::make_pair(getPortType(con.portRef1), getPortType(con.portRef1));
 }
 
-void Block::insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
-                      const std::optional<Ref<ClosedNet>>& net2) {
-    conNet.insert(con, net1, net2, getPortType(con));
-}
-
-void Block::insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos) {
-    auto node = nodes.insert(Node(pos));
-    splitCon(con1, node);
-    splitCon(con2, node);
-}
-
-std::vector<sf::Vector2i> Block::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
-                                               Ref<ClosedNet>                        netRef) const {
-    std::vector<sf::Vector2i> pos{};
-    for (const auto& netCon: conNet.nets[netRef]) {
-        auto intersec = getLineIntersection(
-            line, {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
-        if (intersec) pos.emplace_back(intersec.value());
-    }
-    return pos;
-}
-
-std::vector<sf::Vector2i> Block::getOverlapPos(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const {
-    std::vector<sf::Vector2i> pos{};
-    for (const auto& con1: conNet.nets[net1]) {
-        auto con1Pos =
-            getOverlapPos({getPort(con1.portRef1).portPos, getPort(con1.portRef2).portPos}, net2);
-        for (const auto& intersecPos: con1Pos) pos.emplace_back(intersecPos);
-    }
-    return pos;
-}
-
 ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
     // check for nodes
     for (const auto& node: nodes) {
@@ -237,7 +168,7 @@ ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
     }
     // check connections
     std::vector<Connection> cons;
-    for (const auto& net: conNet.nets) {
+    for (const auto& net: nets) {
         for (const auto& con: net.obj) {
             if (collisionCheck(con, coord)) cons.push_back(con);
         }
@@ -250,4 +181,68 @@ ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
         return cons[0];
     }
     return {};
+}
+
+[[nodiscard]] std::size_t Block::getNodeConCount(const Ref<Node>& node) const {
+    const auto& net   = nets[getClosNetRef(node).value()]; // connection assumed because node
+    std::size_t count = 0;
+    for (std::size_t port = 0; port < 4; ++port) {
+        if (net.contains(PortRef{node, port})) ++count;
+    }
+    return count;
+}
+
+void Block::insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
+                      const std::optional<Ref<ClosedNet>>& net2) {
+    auto portTypes = getPortType(con);
+    if (!net1 && !net2) { // make new closed network
+        auto netRef = nets.insert(ClosedNet{});
+        nets[netRef].insert(con, portTypes);
+        return;
+    }
+    if (net1 && net2) { // connecting two existing networks
+        auto net1Ref = net1.value();
+        auto net2Ref = net2.value();
+        if (net1Ref == net2Ref) { // making loop within closed network
+            nets[net1Ref].insert(con, portTypes);
+            return;
+        } else { // connecting two closed networks
+            if (nets[net1Ref].getSize() < nets[net2Ref].getSize()) std::swap(net1Ref, net2Ref);
+            // net1 is now the bigger of the two
+            nets[net1Ref] += nets[net2Ref];
+            nets.erase(net2Ref);
+            nets[net1Ref].insert(con, portTypes);
+            return;
+        }
+    }
+    // extending network
+    nets[net1 ? net1.value() : net2.value()].insert(con, portTypes);
+    return;
+}
+
+void Block::insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos) {
+    auto node = nodes.insert(Node(pos));
+    splitCon(con1, node);
+    splitCon(con2, node);
+}
+
+std::vector<sf::Vector2i> Block::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
+                                               Ref<ClosedNet>                        netRef) const {
+    std::vector<sf::Vector2i> pos{};
+    for (const auto& netCon: nets[netRef]) {
+        auto intersec = getLineIntersection(
+            line, {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
+        if (intersec) pos.emplace_back(intersec.value());
+    }
+    return pos;
+}
+
+std::vector<sf::Vector2i> Block::getOverlapPos(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const {
+    std::vector<sf::Vector2i> pos{};
+    for (const auto& con1: nets[net1]) {
+        auto con1Pos =
+            getOverlapPos({getPort(con1.portRef1).portPos, getPort(con1.portRef2).portPos}, net2);
+        for (const auto& intersecPos: con1Pos) pos.emplace_back(intersecPos);
+    }
+    return pos;
 }

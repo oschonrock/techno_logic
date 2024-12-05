@@ -41,7 +41,7 @@ class Block {
     StableVector<BlockInst> blockInstances;
     StableVector<Node>      nodes;
     StableVector<Gate>      gates;
-    ConnectionNetwork       conNet;
+    StableVector<ClosedNet> nets;
     std::vector<Port>       ports;
 
     PortInst&                     getPort(const PortRef& port);
@@ -49,6 +49,19 @@ class Block {
     PortType                      getPortType(const PortRef& port) const;
     std::pair<PortType, PortType> getPortType(const Connection& con) const; // TODO remove
     [[nodiscard]] ObjAtCoordVar   whatIsAtCoord(const sf::Vector2i& coord) const;
+
+    template <typename T>
+    [[nodiscard]] std::optional<Ref<ClosedNet>> getClosNetRef(const T& obj) const {
+        for (const auto& net: nets) {
+            if (net.obj.contains(obj)) return net.ind;
+        }
+        return {};
+    }
+    template <typename T>
+    [[nodiscard]] bool contains(const T& obj) const {
+        return getClosNetRef(obj).has_value();
+    }
+    [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const;
 
     // TODO possibly should just be in editor
     [[nodiscard]] std::vector<sf::Vector2i>
@@ -61,4 +74,5 @@ class Block {
     void insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos);
     [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
+    void                  eraseCon(const Connection& con);
 };
