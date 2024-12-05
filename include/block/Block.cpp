@@ -1,13 +1,5 @@
 #include "Block.hpp"
 
-// Node
-Node::Node(const sf::Vector2i& pos_) : pos(pos_) {
-    ports[0] = {Direction::up, pos};
-    ports[1] = {Direction::down, pos};
-    ports[2] = {Direction::left, pos};
-    ports[3] = {Direction::right, pos};
-}
-
 // ClosedNet
 void ClosedNet::maintainIOVecs(bool isInsert, const PortRef& portRef, const PortType& portType) {
     if (portType == PortType::node) return;
@@ -70,15 +62,6 @@ void ClosedNet::erase(const Connection& con, const std::pair<PortType, PortType>
     }
     throw std::logic_error("Port not connected to closed net. Did you call contains?");
 }
-
-// ConnectionNetwork
-// void ConnectionNetwork::copyConnectedPorts(Block& block, const ClosedNet& sourceNet,
-//                                            ClosedNet& destNet, const PortRef& port) {
-//     if (destNet.contains(port)) return;
-//     switch (typeOf(port)) {
-//         case ObjAtCoordType:
-//     }
-// }
 
 void ConnectionNetwork::insert(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
                                const std::optional<Ref<ClosedNet>>& net2,
