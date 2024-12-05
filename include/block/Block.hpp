@@ -243,8 +243,6 @@ struct Block {
     [[nodiscard]] std::vector<sf::Vector2i> getOverlapPos(Ref<ClosedNet> net1,
                                                           Ref<ClosedNet> net2) const;
     void                                    makeOverlapNode(const OverlapPoint& overlap);
-    void                        makeOverlapNodes(const Connection& con, Ref<ClosedNet> net);
-    void                        makeOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2);
     [[nodiscard]] PortRef       makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
                                                Direction dirIntoPort);
     [[nodiscard]] ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord) const;

@@ -154,6 +154,7 @@ PortType Block::getPortType(const PortRef& port) const {
     throw std::logic_error("Port type not handled in getPortType");
 }
 
+// TODO remove should used by block.insert
 std::pair<PortType, PortType> Block::getPortType(const Connection& con) const {
     return std::make_pair(getPortType(con.portRef1), getPortType(con.portRef1));
 }
@@ -182,22 +183,22 @@ void Block::makeOverlapNode(const Block::OverlapPoint& overlap) {
     splitCon(overlap.con2, node);
 }
 
-void Block::makeOverlapNodes(const Connection& con, Ref<ClosedNet> net) {
-    std::vector<OverlapPoint> overlaps{};
-    for (const auto& netCon: conNet.nets[net]) { // find overlaps
-        auto intersec = getLineIntersection(
-            {getPort(con.portRef1).portPos, getPort(con.portRef2).portPos},
-            {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
-        if (intersec) overlaps.emplace_back(con, netCon, intersec.value());
-    }
-    for (const auto& overlap: overlaps) { // make overlaps
-        makeOverlapNode(overlap);
-    }
-}
+// void Block::makeOverlapNodes(const Connection& con, Ref<ClosedNet> net) {
+//     std::vector<OverlapPoint> overlaps{};
+//     for (const auto& netCon: conNet.nets[net]) { // find overlaps
+//         auto intersec = getLineIntersection(
+//             {getPort(con.portRef1).portPos, getPort(con.portRef2).portPos},
+//             {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
+//         if (intersec) overlaps.emplace_back(con, netCon, intersec.value());
+//     }
+//     for (const auto& overlap: overlaps) { // make overlaps
+//         makeOverlapNode(overlap);
+//     }
+// }
 
-void Block::makeOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2) {
-    for (const auto& con: conNet.nets[net1]) makeOverlapNodes(con, net2);
-}
+// void Block::makeOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2) {
+//     for (const auto& con: conNet.nets[net1]) makeOverlapNodes(con, net2);
+// }
 
 std::vector<sf::Vector2i> Block::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
                                                Ref<ClosedNet>                        netRef) const {
@@ -273,7 +274,7 @@ ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
     if (cons.size() > 2)
         throw std::logic_error("Should never be more than 2 connections overlapping");
     else if (cons.size() == 2) {
-        return std::make_pair(cons[0], cons[0]);
+        return std::make_pair(cons[0], cons[1]);
     } else if (cons.size() == 1) {
         return cons[0];
     }

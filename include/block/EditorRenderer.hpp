@@ -22,9 +22,10 @@ class EditorRenderer {
     float     hlRad           = 0.1f;
     sf::Color gridColour{255, 255, 255, 70};
     sf::Color indicatorColour{255, 255, 255, 100};
-    sf::Color nodeColour         = sf::Color::White;
-    sf::Color conColour          = sf::Color::White;
-    sf::Color newConColour       = sf::Color::Blue;
+    sf::Color nodeColour   = sf::Color::White;
+    sf::Color conColour    = sf::Color::White;
+    sf::Color newConColour = sf::Color::Blue;
+    sf::Color overlapColour{255, 255, 0, 100};
     sf::Color highlightConColour = sf::Color::Green;
     sf::Color errorColour        = sf::Color::Red;
     sf::Color debugConColour     = sf::Color::Magenta;
@@ -350,6 +351,16 @@ class EditorRenderer {
 
         std::vector<sf::Vertex> lineVertecies{};
         // editor state based gui
+
+        if (!editor.overlapPos.empty()) {
+            ImGui::SetTooltip(
+                "Connection causes overlaps, consider making this connection elsewhere");
+            for (const auto& pos: editor.overlapPos) {
+                drawNode(pos, nodeRad * newNodeScale, overlapColour);
+                ImGui::Text("(%i,%i)", pos.x, pos.y);
+            }
+        }
+
         switch (editor.state) {
         case Editor::EditorState::Idle:
             mouseIndicator.setPosition(sf::Vector2f(mouseCoord));
@@ -357,19 +368,13 @@ class EditorRenderer {
             window.draw(mouseIndicator);
             break;
         case Editor::EditorState::Connecting:
+
             if (editor.conEndLegal) {
                 drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos, newConColour);
                 drawNode(editor.conEndPos, newNodeScale * nodeRad, newConColour);
             }
             drawNode(editor.conStartPos, newNodeScale * nodeRad,
                      editor.conEndLegal ? newConColour : errorColour);
-            ImGui::Begin("Overlaps");
-            ImGui::Text("Count: %zu", editor.overlapPos.size());
-            for (const auto& pos: editor.overlapPos) {
-                drawNode(pos, nodeRad * newNodeScale, newConColour);
-                ImGui::Text("(%i,%i)", pos.x, pos.y);
-            }
-            ImGui::End();
         }
 
         // Debug overlays

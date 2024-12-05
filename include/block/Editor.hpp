@@ -9,6 +9,7 @@ class Editor {
   private:
     bool isPosLegalEnd(const sf::Vector2i& pos) const;
     bool isPosLegalStart(const sf::Vector2i& start) const;
+    void updateOverlaps();
 
   public:
     Editor(Block& block_) : block(block_) {}
@@ -29,6 +30,6 @@ class Editor {
     std::vector<sf::Vector2i>     overlapPos;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const; // should be in block
-    void         event(const sf::Event& event, const sf::Vector2i& mousePos);
+    void         event(const sf::Event& event);
     void         frame(const sf::Vector2i& mousePos);
 };

@@ -39,7 +39,7 @@ bool Editor::isPosLegalEnd(const sf::Vector2i& end) const {
 
 bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
     auto obj = block.whatIsAtCoord(start);
-    if (!isCoordConType(obj)) {
+    if (!(isCoordConType(obj) || typeOf(conStartObjVar) == ObjAtCoordType::ConCross)) {
         ImGui::SetTooltip("Target obj invalid");
         return false;
     }
@@ -51,6 +51,31 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
     return true;
 }
 
+void Editor::updateOverlaps() {
+    overlapPos.clear();
+    if (conStartPos != conEndPos) {
+        if (conStartCloNet && conEndCloNet) {
+            if (conStartCloNet.value() == conEndCloNet.value()) {
+                ImGui::SetTooltip("Connection proposes loop"); // recomendation
+            } else {
+                overlapPos = block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
+            }
+        }
+        if (conStartCloNet) {
+            for (const auto& pos:
+                 block.getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
+                overlapPos.emplace_back(pos);
+            }
+        }
+        if (conEndCloNet) {
+            for (const auto& pos:
+                 block.getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
+                overlapPos.emplace_back(pos);
+            }
+        }
+    }
+}
+
 sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
     return {std::clamp(static_cast<int>(std::round(pos.x)), 0, static_cast<int>(block.size - 1)),
             std::clamp(static_cast<int>(std::round(pos.y)), 0, static_cast<int>(block.size - 1))};
@@ -59,19 +84,20 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
 // Called every event
 // Primarily responsible for excectution of actions
 // E.g. create destroy objects
-void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
+void Editor::event(const sf::Event& event) {
     if (event.type == sf::Event::MouseButtonReleased &&
         event.mouseButton.button == sf::Mouse::Left) {
-        auto clickedObj = block.whatIsAtCoord(mousePos);
         switch (state) {
         case EditorState::Idle: { // new connection started
             if (!conStartLegal) break;
-
-            if (isCoordConType(clickedObj)) { // connectable
+            if (isCoordConType(conStartObjVar)) { // connectable
                 state = EditorState::Connecting;
                 // reset end... it will contain old data
                 conEndPos    = conStartPos;
                 conEndObjVar = conStartObjVar;
+            } else if (typeOf(conStartObjVar) == ObjAtCoordType::ConCross) { // cross
+                auto conPair = std::get<std::pair<Connection, Connection>>(conStartObjVar);
+                block.makeOverlapNode({conPair.first, conPair.second, conStartPos});
             } else { // clickedObj was a gate or block
                 // TODO
             }
@@ -91,13 +117,11 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
                 block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
             Connection con{startPort, endPort};
 
-            if (conStartCloNet && conEndCloNet)
-                block.makeOverlapNodes(conStartCloNet.value(), conEndCloNet.value());
             block.conNet.insert(con, conStartCloNet, conEndCloNet, block.getPortType(con));
-            if (conStartCloNet) block.makeOverlapNodes(con, conStartCloNet.value());
-            if (conEndCloNet) block.makeOverlapNodes(con, conEndCloNet.value());
-            state = EditorState::Idle;
+            // net refs invalidated in case of network combination
             conEndCloNet.reset();
+            conStartCloNet.reset();
+            state = EditorState::Idle;
             break;
         }
         }
@@ -107,6 +131,8 @@ void Editor::event(const sf::Event& event, const sf::Vector2i& mousePos) {
 // Called every frame
 // Responsible for ensuring correct state of "con" variables according to block state and inputs
 void Editor::frame(const sf::Vector2i& mousePos) {
+    conEndCloNet.reset();
+    overlapPos.clear();
     switch (state) {
     case EditorState::Idle: {
         conStartPos    = mousePos;
@@ -123,6 +149,13 @@ void Editor::frame(const sf::Vector2i& mousePos) {
                 block.conNet.getClosNetRef(std::get<Connection>(conStartObjVar).portRef1);
             break;
         }
+        case ObjAtCoordType::ConCross: {
+            auto conPair   = std::get<std::pair<Connection, Connection>>(conStartObjVar);
+            conStartCloNet = block.conNet.getClosNetRef(conPair.first.portRef1);
+            conEndCloNet   = block.conNet.getClosNetRef(conPair.second.portRef1);
+            overlapPos     = block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
+            break;
+        }
         default:
             conStartCloNet.reset();
         }
@@ -131,7 +164,6 @@ void Editor::frame(const sf::Vector2i& mousePos) {
     case EditorState::Connecting: {
         sf::Vector2i diff       = mousePos - conStartPos;
         sf::Vector2i newEndProp = conStartPos + snapToAxis(diff); // default
-        conEndCloNet.reset();
 
         // work out proposed end point based on state
         switch (typeOf(conStartObjVar)) { // from 1, up to dot(diff, portDir)
@@ -194,30 +226,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         default:
             break;
         }
-        overlapPos.clear();
-        if (conStartPos != conEndPos) {
-            if (conStartCloNet && conEndCloNet) {
-                if (conStartCloNet.value() == conEndCloNet.value()) {
-                    ImGui::SetTooltip("Connection proposes loop"); // recomendation only (for now)
-                } else {
-                    for (const auto& overlap:
-                         block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value()))
-                        overlapPos.emplace_back(overlap);
-                }
-            }
-            if (conStartCloNet) {
-                for (const auto& pos:
-                     block.getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
-                    overlapPos.emplace_back(pos);
-                }
-            }
-            if (conEndCloNet) {
-                for (const auto& pos:
-                     block.getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
-                    overlapPos.emplace_back(pos);
-                }
-            }
-        }
+        updateOverlaps();
         break;
     }
     }
