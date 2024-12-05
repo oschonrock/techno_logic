@@ -19,9 +19,8 @@ class EditorRenderer {
     float     crossSize       = 0.1f;
     float     nodeRad         = 0.1f;
     float     newNodeScale    = 1.5f;
-    float     hlRad           = 0.1f;
     sf::Color gridColour{255, 255, 255, 70};
-    sf::Color indicatorColour{255, 255, 255, 100};
+    sf::Color cursorPointColour{255, 255, 255, 100};
     sf::Color nodeColour   = sf::Color::White;
     sf::Color conColour    = sf::Color::White;
     sf::Color newConColour = sf::Color::Blue;
@@ -41,7 +40,6 @@ class EditorRenderer {
 
     std::vector<sf::Vertex>   gridVerts;
     std::array<sf::Vertex, 5> borderVerts;
-    sf::CircleShape           mouseIndicator{hlRad};
     sf::Text                  name;
 
     enum struct MoveStatus : std::size_t { idle = 0, moveStarted = 1, moveConfirmed = 2 };
@@ -97,9 +95,6 @@ class EditorRenderer {
         borderVerts[2] = {{static_cast<float>(block.size), static_cast<float>(block.size)}};
         borderVerts[3] = {{static_cast<float>(block.size), -1.0f}};
         borderVerts[4] = {{-1.0f, -1.0f}};
-
-        // set up highlighter
-        mouseIndicator.setOrigin({hlRad, hlRad});
 
         // set up name
         name.setScale(sf::Vector2f{1.0f, 1.0f} *
@@ -353,19 +348,18 @@ class EditorRenderer {
         // editor state based gui
 
         if (!editor.overlapPos.empty()) {
-            ImGui::SetTooltip(
-                "Connection causes overlaps, consider making this connection elsewhere");
+            ImGui::SetTooltip("Connection overlaps connected wires");
             for (const auto& pos: editor.overlapPos) {
                 drawNode(pos, nodeRad * newNodeScale, overlapColour);
-                ImGui::Text("(%i,%i)", pos.x, pos.y);
             }
         }
 
         switch (editor.state) {
         case Editor::EditorState::Idle:
-            mouseIndicator.setPosition(sf::Vector2f(mouseCoord));
-            mouseIndicator.setFillColor(editor.conStartLegal ? indicatorColour : errorColour);
-            window.draw(mouseIndicator);
+            drawNode(mouseCoord, nodeRad, cursorPointColour);
+            if (typeOf(editor.conStartObjVar) == ObjAtCoordType::ConCross) {
+                drawNode(editor.conStartPos, newNodeScale * nodeRad, newConColour);
+            }
             break;
         case Editor::EditorState::Connecting:
 

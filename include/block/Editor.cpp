@@ -85,8 +85,11 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
 // Primarily responsible for excectution of actions
 // E.g. create destroy objects
 void Editor::event(const sf::Event& event) {
-    if (event.type == sf::Event::MouseButtonReleased &&
-        event.mouseButton.button == sf::Mouse::Left) {
+    if (event.type == sf::Event::MouseButtonPressed &&
+        event.mouseButton.button == sf::Mouse::Right) { // reset
+        state = EditorState::Idle;
+    } else if (event.type == sf::Event::MouseButtonReleased &&
+               event.mouseButton.button == sf::Mouse::Left) {
         switch (state) {
         case EditorState::Idle: { // new connection started
             if (!conStartLegal) break;
@@ -107,7 +110,6 @@ void Editor::event(const sf::Event& event) {
             if (!conEndLegal) break;
             if (conEndPos == conStartPos) { // no move click is reset
                 state = EditorState::Idle;
-                conEndCloNet.reset();
                 break;
             }
 
@@ -131,8 +133,8 @@ void Editor::event(const sf::Event& event) {
 // Called every frame
 // Responsible for ensuring correct state of "con" variables according to block state and inputs
 void Editor::frame(const sf::Vector2i& mousePos) {
-    conEndCloNet.reset();
     overlapPos.clear();
+    conEndCloNet.reset();
     switch (state) {
     case EditorState::Idle: {
         conStartPos    = mousePos;
@@ -154,6 +156,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             conStartCloNet = block.conNet.getClosNetRef(conPair.first.portRef1);
             conEndCloNet   = block.conNet.getClosNetRef(conPair.second.portRef1);
             overlapPos     = block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
+            overlapPos.erase(std::remove(overlapPos.begin(), overlapPos.end(), conStartPos));
             break;
         }
         default:

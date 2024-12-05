@@ -183,23 +183,6 @@ void Block::makeOverlapNode(const Block::OverlapPoint& overlap) {
     splitCon(overlap.con2, node);
 }
 
-// void Block::makeOverlapNodes(const Connection& con, Ref<ClosedNet> net) {
-//     std::vector<OverlapPoint> overlaps{};
-//     for (const auto& netCon: conNet.nets[net]) { // find overlaps
-//         auto intersec = getLineIntersection(
-//             {getPort(con.portRef1).portPos, getPort(con.portRef2).portPos},
-//             {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
-//         if (intersec) overlaps.emplace_back(con, netCon, intersec.value());
-//     }
-//     for (const auto& overlap: overlaps) { // make overlaps
-//         makeOverlapNode(overlap);
-//     }
-// }
-
-// void Block::makeOverlapNodes(Ref<ClosedNet> net1, Ref<ClosedNet> net2) {
-//     for (const auto& con: conNet.nets[net1]) makeOverlapNodes(con, net2);
-// }
-
 std::vector<sf::Vector2i> Block::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
                                                Ref<ClosedNet>                        netRef) const {
     std::vector<sf::Vector2i> pos{};
