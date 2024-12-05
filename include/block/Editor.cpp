@@ -100,7 +100,7 @@ void Editor::event(const sf::Event& event) {
                 conEndObjVar = conStartObjVar;
             } else if (typeOf(conStartObjVar) == ObjAtCoordType::ConCross) { // cross
                 auto conPair = std::get<std::pair<Connection, Connection>>(conStartObjVar);
-                block.makeOverlapNode({conPair.first, conPair.second, conStartPos});
+                block.insertOverlap(conPair.first, conPair.second, conStartPos);
             } else { // clickedObj was a gate or block
                 // TODO
             }

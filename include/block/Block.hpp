@@ -28,7 +28,12 @@ inline bool isCoordConType(const ObjAtCoordVar& ref) {
     }
 }
 
-struct Block {
+class Block {
+  private:
+    bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
+    void splitCon(const Connection& con, Ref<Node> node);
+
+  public:
     std::size_t size = 100;
     std::string name;
     std::string description;
@@ -39,24 +44,21 @@ struct Block {
     ConnectionNetwork       conNet;
     std::vector<Port>       ports;
 
-    struct OverlapPoint {
-        Connection   con1;
-        Connection   con2;
-        sf::Vector2i pos;
-    };
-
     PortInst&                     getPort(const PortRef& port);
     const PortInst&               getPort(const PortRef& port) const;
     PortType                      getPortType(const PortRef& port) const;
-    std::pair<PortType, PortType> getPortType(const Connection& con) const;
-    bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
-    void splitCon(const Connection& con, Ref<Node> node);
+    std::pair<PortType, PortType> getPortType(const Connection& con) const; // TODO remove
+    [[nodiscard]] ObjAtCoordVar   whatIsAtCoord(const sf::Vector2i& coord) const;
+
+    // TODO possibly should just be in editor
     [[nodiscard]] std::vector<sf::Vector2i>
     getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line, Ref<ClosedNet> netRef) const;
     [[nodiscard]] std::vector<sf::Vector2i> getOverlapPos(Ref<ClosedNet> net1,
                                                           Ref<ClosedNet> net2) const;
-    void                                    makeOverlapNode(const OverlapPoint& overlap);
-    [[nodiscard]] PortRef       makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                               Direction dirIntoPort);
-    [[nodiscard]] ObjAtCoordVar whatIsAtCoord(const sf::Vector2i& coord) const;
+
+    void insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
+                   const std::optional<Ref<ClosedNet>>& net2);
+    void insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos);
+    [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
+                                         Direction dirIntoPort);
 };

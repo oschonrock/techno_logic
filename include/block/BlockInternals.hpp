@@ -8,7 +8,7 @@ enum struct PortType { input, output, node };
 struct PortInst {
     Direction    portDir;
     sf::Vector2i portPos;
-    PortType     portType;
+    // PortType     portType;
     bool         negated = false;
 };
 
@@ -18,10 +18,14 @@ struct Node {
 
     // ALWAYS form a connection to node after construction
     Node(const sf::Vector2i& pos_) : pos(pos_) {
-        ports[0] = {Direction::up, pos, PortType::node};
-        ports[1] = {Direction::down, pos, PortType::node};
-        ports[2] = {Direction::left, pos, PortType::node};
-        ports[3] = {Direction::right, pos, PortType::node};
+        // ports[0] = {Direction::up, pos, PortType::node};
+        // ports[1] = {Direction::down, pos, PortType::node};
+        // ports[2] = {Direction::left, pos, PortType::node};
+        // ports[3] = {Direction::right, pos, PortType::node};
+        ports[0] = {Direction::up, pos};
+        ports[1] = {Direction::down, pos};
+        ports[2] = {Direction::left, pos};
+        ports[3] = {Direction::right, pos};
     }
 };
 
@@ -30,7 +34,7 @@ struct Gate {
     std::vector<PortInst> ports;
 };
 
-struct Block;
+class Block;
 
 struct Port {
     std::string name;
