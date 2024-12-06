@@ -114,17 +114,18 @@ class ClosedNet {
         } else if (typeOf(start) == PortObjType::Node) { // if start node
             for (std::size_t portNum = 0; portNum < 4; ++portNum) {
                 PortRef nodePort{start.ref, portNum};
-                if (!alreadyChecked.contains(nodePort)) {
-                    if (nodePort == end) return true;
-                    alreadyChecked.insert(nodePort);
-                    if (contains(nodePort) && isConnected(getCon(nodePort).portRef2, end, alreadyChecked)) {
-                        return true;
-                    }
+                if (nodePort == end) return true;
+                alreadyChecked.insert(nodePort);
+                if (contains(nodePort) &&
+                    isConnected(getCon(nodePort).portRef2, end, alreadyChecked)) {
+                    return true;
                 }
             }
         }
         return false;
     }
+
+    // void addConnected(const PortRef& curr, ClosedNet& newNet) { newNet.insert(curr) }
 
   public:
     // [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
@@ -140,6 +141,7 @@ class ClosedNet {
     // prefer call contains() on port
     [[nodiscard]] bool contains(const Ref<Node> node) const;
     bool               isConnected(const PortRef& start, const PortRef& end) const {
+        if (!contains(start) || !contains(end)) return false;
         absl::flat_hash_set<PortRef> alreadyChecked{};
         return isConnected(start, end, alreadyChecked);
     }

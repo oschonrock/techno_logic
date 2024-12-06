@@ -204,8 +204,20 @@ void Block::eraseCon(const Connection& con) {
     auto net = getClosNetRef(con.portRef1);
     assert(net.has_value());
     nets[net.value()].erase(con, getPortType(con));
-    if (!nets[net.value()].isConnected(con.portRef1, con.portRef2)) {
-        std::cout << "succesful deletion \n";
+    // delete now disconnected nodes
+    if (typeOf(con.portRef1) == PortObjType::Node) {
+        auto node = std::get<Ref<Node>>(con.portRef1.ref);
+        if (getNodeConCount(node) == 0) {
+            nodes.erase(node);
+        }
+    }
+    if (typeOf(con.portRef2) == PortObjType::Node) {
+        auto node = std::get<Ref<Node>>(con.portRef2.ref);
+        if (getNodeConCount(node) == 0) {
+            nodes.erase(node);
+        }
+    }
+    if (!nets[net.value()].isConnected(con.portRef1, con.portRef2)) { // network split
     }
 }
 
