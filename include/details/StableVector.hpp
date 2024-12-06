@@ -127,34 +127,32 @@ class PepperedVector {
         // using VecIt = std::vector<>;
         using VecIt = std::vector<ElemExists>::iterator;
         Iterator()  = default;
-        Iterator(const PepperedVector* vec_, VecIt it_) : vec(vec_), it(it_) {}
+        Iterator(VecIt it_, VecIt begin_, VecIt end_) : it(it_), begin(begin_), end(end_) {}
 
         [[nodiscard]] reference operator*() const { return it->elem; }
         [[nodiscard]] pointer   operator->() const { return &(it->elem); }
 
         Iterator& operator++() { // Prefix increment
-            do {
-                ++it;
-            } while (it->isDeleted && it != (*vec).vec.cend());
+            ++it;
+            while (it != end && it->isDeleted) ++it;
             return *this;
         }
 
         Iterator operator++(int) { // Postfix increment
             Iterator tmp = *this;
-            ++it;
+            ++(*this);
             return tmp;
         }
 
         Iterator& operator--() { // Prefix decrement
-            do {
-                --it;
-            } while (it->isDeleted && it != (*vec).vec.cbegin());
+            --it;
+            while (it != begin && it->isDeleted) --it;
             return *this;
         }
 
         Iterator operator--(int) { // Postfix decrement
             Iterator tmp = *this;
-            --it;
+            --(*this);
             return tmp;
         }
 
@@ -162,8 +160,10 @@ class PepperedVector {
         friend bool operator!=(const Iterator& a, const Iterator& b) { return a.it != b.it; }
 
       private:
-        const PepperedVector* vec; // has to be pointer to be default initialisable
-        VecIt                 it;
+        VecIt it;
+        VecIt begin;
+        VecIt end;
+        friend PepperedVector;
     };
 
     struct ConstIterator {
@@ -174,34 +174,32 @@ class PepperedVector {
 
         using VecIt     = std::vector<ElemExists>::const_iterator;
         ConstIterator() = default;
-        ConstIterator(const PepperedVector* vec_, VecIt it_) : vec(vec_), it(it_) {}
+        ConstIterator(VecIt it_, VecIt begin_, VecIt end_) : it(it_), begin(begin_), end(end_) {}
 
         [[nodiscard]] reference operator*() const { return ConstIterator::it->elem; }
         [[nodiscard]] pointer   operator->() const { return &(ConstIterator::it->elem); }
 
         ConstIterator& operator++() { // Prefix increment
-            do {
-                ++it;
-            } while (it->isDeleted && it != (*vec).vec.cend());
+            ++it;
+            while (it != end && it->isDeleted) ++it;
             return *this;
         }
 
         ConstIterator operator++(int) { // Postfix increment
             ConstIterator tmp = *this;
-            ++it;
+            ++(*this);
             return tmp;
         }
 
         ConstIterator& operator--() { // Prefix decrement
-            do {
-                --it;
-            } while (it->isDeleted && it != (*vec).vec.cbegin());
+            --it;
+            while (it != begin && it->isDeleted) --it;
             return *this;
         }
 
         ConstIterator operator--(int) { // Postfix decrement
             ConstIterator tmp = *this;
-            --it;
+            --(*this);
             return tmp;
         }
 
@@ -213,8 +211,10 @@ class PepperedVector {
         }
 
       private:
-        const PepperedVector* vec; // has to be pointer to be default initialisable
-        VecIt                 it;
+        VecIt it;
+        VecIt begin;
+        VecIt end;
+        friend PepperedVector;
     };
 
     static_assert(std::bidirectional_iterator<Iterator>);
@@ -222,32 +222,40 @@ class PepperedVector {
 
   public:
     [[nodiscard]] Iterator begin() {
-        auto     beg = vec.begin();
-        Iterator it{this, vec.begin()};
-        if (beg->isDeleted) ++it;
+        auto beg = vec.begin();
+        auto end = vec.end();
+        while (beg != end && beg->isDeleted) ++beg; // move beg to first elem or vec.end
+        if (beg != end) {                           // not empty
+            end--;
+            while (end != beg && end->isDeleted) --end; // move end to last elem or beg
+            ++end;
+        }
+        Iterator it{beg, beg, end};
         return it;
     }
     [[nodiscard]] Iterator end() {
-        auto end = vec.end();
-        do {
-            --end;
-        } while (end->isDeleted && end != vec.begin());
-        return {this, ++end}; // end is out of bounds
+        auto it = begin();
+        it.it   = it.end;
+        return it;
     }
     [[nodiscard]] ConstIterator begin() const { return cbegin(); }
     [[nodiscard]] ConstIterator end() const { return cend(); }
     [[nodiscard]] ConstIterator cbegin() const {
         auto beg = vec.cbegin();
-        auto it  = ConstIterator(this, beg);
-        if (beg->isDeleted) ++it;
+        auto end = vec.cend();
+        while (beg != end && beg->isDeleted) ++beg; // move beg to first elem or vec.end
+        if (beg != end) {                           // not empty
+            end--;
+            while (end != beg && end->isDeleted) --end; // move end to last elem or beg
+            ++end;
+        }
+        ConstIterator it{beg, beg, end};
         return it;
     }
     [[nodiscard]] ConstIterator cend() const {
-        auto end = vec.cend();
-        do {
-            --end;
-        } while (end->isDeleted && end != vec.cbegin());
-        return {this, ++end}; // end is out of bounds
+        auto it = begin();
+        it.it   = it.end;
+        return it;
     }
 };
 

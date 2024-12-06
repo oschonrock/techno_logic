@@ -4,6 +4,7 @@
 
 #include "details/StableVector.hpp"
 
+// StableVector
 template <typename T, typename Q>
 void equalityCheck(T subj, const std::vector<Q>& vec) { // subj is taken by value
     EXPECT_EQ(subj.size(), vec.size());
@@ -25,6 +26,19 @@ using TestedTypes = testing::Types<PepperedVector<int>, CompactMap<int>>;
 TYPED_TEST_SUITE(StableVectors, TestedTypes);
 
 TYPED_TEST(StableVectors, IsEmptyIntially) { EXPECT_TRUE(this->vec.empty()); }
+
+TYPED_TEST(StableVectors, IterateEmpty) {
+    auto& vec = this->vec;
+    EXPECT_EQ(vec.begin(), vec.end());
+    for (auto& _: vec) EXPECT_TRUE(false);
+    for (const auto& _: vec) EXPECT_TRUE(false);
+    auto ref = vec.insert(0);
+    vec.erase(ref);
+    ASSERT_TRUE(vec.empty());
+    EXPECT_EQ(vec.begin(), vec.end());
+    for (auto& _: vec) EXPECT_TRUE(false);
+    for (const auto& _: vec) EXPECT_TRUE(false);
+}
 
 TYPED_TEST(StableVectors, Adding) {
     auto& vec     = this->vec;
