@@ -73,12 +73,12 @@ void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
     auto&     net = nets[getClosNetRef(oldCon.portRef1).value()];
     Direction dir = vecToDir(nodes[node].pos - getPort(oldCon.portRef1).portPos);
     // TODO implement by calling insert first
-    eraseCon(oldCon);
+    net.erase(oldCon, getPortType(oldCon));
     auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
-    // assert(!contains(con.portRef2));
+    assert(!contains(con.portRef2));
     net.insert(con, getPortType(con));
     con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
-    // assert(!contains(con.portRef2));
+    assert(!contains(con.portRef2));
     net.insert(con, getPortType(con));
 }
 
@@ -184,14 +184,26 @@ void Block::insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>
 void Block::insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos) {
     auto node = nodes.insert(Node(pos));
     splitCon(con1, node);
-    splitCon(con2, node);
+    auto con1Net = getClosNetRef(con1.portRef1);
+    auto con2Net = getClosNetRef(con2.portRef1);
+    if (con1Net.value() == con2Net.value()) {
+        splitCon(con2, node);
+    } else {
+        nets[con2Net.value()].erase(
+            con2, getPortType(con2)); // no need for net split as will be reconnected
+        auto con2P1Dir = vecToDir(getPort(con2.portRef1).portPos - pos);
+        insertCon({{node, static_cast<std::size_t>(con2P1Dir)}, con2.portRef1}, con2Net, con1Net);
+        auto newNetRef = getClosNetRef(node);
+        insertCon({{node, static_cast<std::size_t>(reverseDir(con2P1Dir))}, con2.portRef2}, newNetRef,
+                  newNetRef);
+    }
 }
 
 void Block::eraseCon(const Connection& con) {
     auto net = getClosNetRef(con.portRef1);
     assert(net.has_value());
     nets[net.value()].erase(con, getPortType(con));
-    if (!nets[net.value()].isConnected(con.portRef1, con.portRef2)){
+    if (!nets[net.value()].isConnected(con.portRef1, con.portRef2)) {
         std::cout << "succesful deletion \n";
     }
 }
