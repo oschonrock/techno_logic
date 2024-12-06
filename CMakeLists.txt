@@ -88,11 +88,16 @@ fetchcontent_declare(abseil-cpp
     SYSTEM)
 fetchcontent_makeavailable(abseil-cpp)
 
-add_executable(techno_logic app/main.cpp include/block/Editor.cpp include/block/Block.cpp)
-target_include_directories(techno_logic PRIVATE ./include)
-target_link_libraries(techno_logic PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML absl::flat_hash_map ${PROJECT_STATIC_OPTIONS})
+add_library(techno_logic_internal include/block/Editor.cpp include/block/Block.cpp)
+target_include_directories(techno_logic_internal PUBLIC ./include)
+target_link_libraries(techno_logic_internal PUBLIC sfml-graphics ImGui-SFML::ImGui-SFML absl::flat_hash_map ${PROJECT_STATIC_OPTIONS})
+
+add_executable(techno_logic app/main.cpp)
+target_link_libraries(techno_logic techno_logic_internal)
 target_compile_features(techno_logic PRIVATE cxx_std_17)
 target_compile_options(techno_logic PRIVATE ${PROJECT_COMPILE_OPTIONS})
+
+add_subdirectory(tests)
 
 if(WIN32)
     add_custom_command(

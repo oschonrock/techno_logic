@@ -71,3 +71,6 @@ $CMAKE --build $BUILD_DIR -- $GENERATOR_OPTIONS
 
 ## copy compile_commands.json for ease
 rm -f ./compile_commands.json && ln -s $BUILD_DIR/compile_commands.json .
+
+## run tests
+GTEST_COLOR=1 ctest --test-dir $BUILD_DIR/tests --output-on-failure -j
