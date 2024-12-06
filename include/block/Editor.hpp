@@ -9,6 +9,10 @@ class Editor {
   private:
     bool isPosLegalEnd(const sf::Vector2i& pos) const;
     bool isPosLegalStart(const sf::Vector2i& start) const;
+    [[nodiscard]] std::vector<sf::Vector2i>
+    getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line, Ref<ClosedNet> netRef) const;
+    [[nodiscard]] std::vector<sf::Vector2i> getOverlapPos(Ref<ClosedNet> net1,
+                                                          Ref<ClosedNet> net2) const;
     void updateOverlaps();
 
   public:

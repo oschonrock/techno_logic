@@ -51,6 +51,27 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
     return true;
 }
 
+std::vector<sf::Vector2i> Editor::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
+                                               Ref<ClosedNet>                        netRef) const {
+    std::vector<sf::Vector2i> pos{};
+    for (const auto& netCon: block.nets[netRef]) {
+        auto intersec = getLineIntersection(
+            line, {block.getPort(netCon.portRef1).portPos, block.getPort(netCon.portRef2).portPos});
+        if (intersec) pos.emplace_back(intersec.value());
+    }
+    return pos;
+}
+
+std::vector<sf::Vector2i> Editor::getOverlapPos(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const {
+    std::vector<sf::Vector2i> pos{};
+    for (const auto& con1: block.nets[net1]) {
+        auto con1Pos =
+            getOverlapPos({block.getPort(con1.portRef1).portPos, block.getPort(con1.portRef2).portPos}, net2);
+        for (const auto& intersecPos: con1Pos) pos.emplace_back(intersecPos);
+    }
+    return pos;
+}
+
 void Editor::updateOverlaps() {
     overlapPos.clear();
     if (conStartPos != conEndPos) {
@@ -58,18 +79,18 @@ void Editor::updateOverlaps() {
             if (conStartCloNet.value() == conEndCloNet.value()) {
                 ImGui::SetTooltip("Connection proposes loop"); // recomendation
             } else {
-                overlapPos = block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
+                overlapPos = getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
             }
         }
         if (conStartCloNet) {
             for (const auto& pos:
-                 block.getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
+                 getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
                 overlapPos.emplace_back(pos);
             }
         }
         if (conEndCloNet) {
             for (const auto& pos:
-                 block.getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
+                 getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
                 overlapPos.emplace_back(pos);
             }
         }
@@ -155,7 +176,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             auto conPair   = std::get<std::pair<Connection, Connection>>(conStartObjVar);
             conStartCloNet = block.getClosNetRef(conPair.first.portRef1);
             conEndCloNet   = block.getClosNetRef(conPair.second.portRef1);
-            overlapPos     = block.getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
+            overlapPos     = getOverlapPos(conStartCloNet.value(), conEndCloNet.value());
             overlapPos.erase(std::remove(overlapPos.begin(), overlapPos.end(), conStartPos));
             break;
         }

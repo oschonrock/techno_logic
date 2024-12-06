@@ -47,7 +47,7 @@ class Block {
     PortInst&                     getPort(const PortRef& port);
     const PortInst&               getPort(const PortRef& port) const;
     PortType                      getPortType(const PortRef& port) const;
-    std::pair<PortType, PortType> getPortType(const Connection& con) const; // TODO remove
+    std::pair<PortType, PortType> getPortType(const Connection& con) const;
     [[nodiscard]] ObjAtCoordVar   whatIsAtCoord(const sf::Vector2i& coord) const;
 
     template <typename T>
@@ -63,16 +63,11 @@ class Block {
     }
     [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const;
 
-    // TODO possibly should just be in editor
-    [[nodiscard]] std::vector<sf::Vector2i>
-    getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line, Ref<ClosedNet> netRef) const;
-    [[nodiscard]] std::vector<sf::Vector2i> getOverlapPos(Ref<ClosedNet> net1,
-                                                          Ref<ClosedNet> net2) const;
-
     void insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
                    const std::optional<Ref<ClosedNet>>& net2);
     void insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos);
+    void eraseCon(const Connection& con);
+
     [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
                                          Direction dirIntoPort);
-    void                  eraseCon(const Connection& con);
 };

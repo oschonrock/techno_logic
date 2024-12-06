@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Helpers.hpp"
+#include "absl/container/flat_hash_set.h"
 #include "details/StableVector.hpp"
 
 enum struct PortType { input, output, node };
@@ -9,7 +10,7 @@ struct PortInst {
     Direction    portDir;
     sf::Vector2i portPos;
     // PortType     portType;
-    bool         negated = false;
+    bool negated = false;
 };
 
 struct Node {
@@ -100,6 +101,30 @@ class ClosedNet {
     std::size_t                           size{};
 
     void maintainIOVecs(bool isInsert, const PortRef& portRef, const PortType& portType);
+    bool isConnected(const PortRef& start, const PortRef& end,
+                     absl::flat_hash_set<PortRef>& alreadyChecked) const {
+        if (start == end) return true;
+        if (alreadyChecked.contains(start)) return false;
+        alreadyChecked.insert(start);
+        if (typeOf(start) != PortObjType::Node) { // if start not node
+            if (!contains(start))
+                return false;
+            else if (isConnected(getCon(start).portRef2, end, alreadyChecked))
+                return true;
+        } else if (typeOf(start) == PortObjType::Node) { // if start node
+            for (std::size_t portNum = 0; portNum < 4; ++portNum) {
+                PortRef nodePort{start.ref, portNum};
+                if (!alreadyChecked.contains(nodePort)) {
+                    if (nodePort == end) return true;
+                    alreadyChecked.insert(nodePort);
+                    if (contains(nodePort) && isConnected(getCon(nodePort).portRef2, end, alreadyChecked)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
   public:
     // [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
@@ -113,7 +138,11 @@ class ClosedNet {
     [[nodiscard]] bool contains(const PortRef& port) const;
     [[nodiscard]] bool contains(const Connection& con) const;
     // prefer call contains() on port
-    [[nodiscard]] bool       contains(const Ref<Node> node) const;
+    [[nodiscard]] bool contains(const Ref<Node> node) const;
+    bool               isConnected(const PortRef& start, const PortRef& end) const {
+        absl::flat_hash_set<PortRef> alreadyChecked{};
+        return isConnected(start, end, alreadyChecked);
+    }
     [[nodiscard]] Connection getCon(const PortRef& port) const;
 
     // NOTE: Destroys network "other". Adds all connections from another network

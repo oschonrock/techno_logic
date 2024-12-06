@@ -73,51 +73,13 @@ void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
     auto&     net = nets[getClosNetRef(oldCon.portRef1).value()];
     Direction dir = vecToDir(nodes[node].pos - getPort(oldCon.portRef1).portPos);
     // TODO implement by calling insert first
-    net.erase(oldCon, getPortType(oldCon));
+    eraseCon(oldCon);
     auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
-    assert(!contains(con.portRef2));
+    // assert(!contains(con.portRef2));
     net.insert(con, getPortType(con));
     con = Connection(oldCon.portRef2, PortRef{node, static_cast<std::size_t>(reverseDir(dir))});
-    assert(!contains(con.portRef2));
+    // assert(!contains(con.portRef2));
     net.insert(con, getPortType(con));
-}
-
-// Returns ref to port at location
-// If there isn't one creates one according to what's currently there;
-// Note takes var by ref and may invalidate it (in case of deleting redundant point)
-[[nodiscard]] PortRef Block::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                            Direction dirIntoPort) { // TODO swap port dir
-    switch (typeOf(var)) {
-    case ObjAtCoordType::Empty: { // make new node
-        Ref<Node> node = nodes.insert(Node{pos});
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
-    }
-    case ObjAtCoordType::Con: { // make new node and split connection
-        auto node   = nodes.insert(Node{pos});
-        auto oldCon = std::get<Connection>(var);
-        splitCon(oldCon, node);
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
-    }
-    case ObjAtCoordType::Port: { // return port
-        return std::get<PortRef>(var);
-    }
-    case ObjAtCoordType::Node: { // if redundant delete node else return port
-        Ref<Node> node = std::get<Ref<Node>>(var);
-        PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
-        auto      parralelPortNet = getClosNetRef(port);
-        if (parralelPortNet && getNodeConCount(node) == 1) { // if node is redundant
-            auto& net          = nets[parralelPortNet.value()];
-            auto  redundantCon = net.getCon(port);
-            net.erase(redundantCon, getPortType(redundantCon));
-            nodes.erase(node);
-            var = {}; // prevents deleted node ref being used
-            return redundantCon.portRef2;
-        }
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
-    }
-    default:
-        throw std::logic_error("Cannot make connection to location which isn't viable");
-    }
 }
 
 PortInst& Block::getPort(const PortRef& port) {
@@ -156,7 +118,6 @@ PortType Block::getPortType(const PortRef& port) const {
     throw std::logic_error("Port type not handled in getPortType");
 }
 
-// TODO remove should used by block.insert
 std::pair<PortType, PortType> Block::getPortType(const Connection& con) const {
     return std::make_pair(getPortType(con.portRef1), getPortType(con.portRef1));
 }
@@ -226,23 +187,49 @@ void Block::insertOverlap(const Connection& con1, const Connection& con2, const 
     splitCon(con2, node);
 }
 
-std::vector<sf::Vector2i> Block::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
-                                               Ref<ClosedNet>                        netRef) const {
-    std::vector<sf::Vector2i> pos{};
-    for (const auto& netCon: nets[netRef]) {
-        auto intersec = getLineIntersection(
-            line, {getPort(netCon.portRef1).portPos, getPort(netCon.portRef2).portPos});
-        if (intersec) pos.emplace_back(intersec.value());
+void Block::eraseCon(const Connection& con) {
+    auto net = getClosNetRef(con.portRef1);
+    assert(net.has_value());
+    nets[net.value()].erase(con, getPortType(con));
+    if (!nets[net.value()].isConnected(con.portRef1, con.portRef2)){
+        std::cout << "succesful deletion \n";
     }
-    return pos;
 }
 
-std::vector<sf::Vector2i> Block::getOverlapPos(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const {
-    std::vector<sf::Vector2i> pos{};
-    for (const auto& con1: nets[net1]) {
-        auto con1Pos =
-            getOverlapPos({getPort(con1.portRef1).portPos, getPort(con1.portRef2).portPos}, net2);
-        for (const auto& intersecPos: con1Pos) pos.emplace_back(intersecPos);
+// Returns ref to port at location
+// If there isn't one creates one according to what's currently there;
+// Note takes var by ref and may invalidate it (in case of deleting redundant point)
+[[nodiscard]] PortRef Block::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
+                                            Direction dirIntoPort) { // TODO swap port dir
+    switch (typeOf(var)) {
+    case ObjAtCoordType::Empty: { // make new node
+        Ref<Node> node = nodes.insert(Node{pos});
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
     }
-    return pos;
+    case ObjAtCoordType::Con: { // make new node and split connection
+        auto node   = nodes.insert(Node{pos});
+        auto oldCon = std::get<Connection>(var);
+        splitCon(oldCon, node);
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+    }
+    case ObjAtCoordType::Port: { // return port
+        return std::get<PortRef>(var);
+    }
+    case ObjAtCoordType::Node: { // if redundant delete node else return port
+        Ref<Node> node = std::get<Ref<Node>>(var);
+        PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
+        auto      parralelPortNet = getClosNetRef(port);
+        if (parralelPortNet && getNodeConCount(node) == 1) { // if node is redundant
+            auto& net          = nets[parralelPortNet.value()];
+            auto  redundantCon = net.getCon(port);
+            net.erase(redundantCon, getPortType(redundantCon));
+            nodes.erase(node);
+            var = {}; // prevents deleted node ref being used
+            return redundantCon.portRef2;
+        }
+        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+    }
+    default:
+        throw std::logic_error("Cannot make connection to location which isn't viable");
+    }
 }
