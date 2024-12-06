@@ -133,11 +133,10 @@ void Editor::event(const sf::Event& event) {
                 state = EditorState::Idle;
                 break;
             }
-
             PortRef startPort = block.makeNewPortRef(conStartObjVar, conStartPos,
-                                                     vecToDir(conStartPos - conEndPos));
+                                                     vecToDir(conEndPos - conStartPos));
             PortRef endPort =
-                block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conEndPos - conStartPos));
+                block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conStartPos - conEndPos));
             Connection con{startPort, endPort};
 
             block.insertCon(con, conStartCloNet, conEndCloNet);

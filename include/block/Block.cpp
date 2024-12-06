@@ -191,11 +191,12 @@ void Block::insertOverlap(const Connection& con1, const Connection& con2, const 
     } else {
         nets[con2Net.value()].erase(
             con2, getPortType(con2)); // no need for net split as will be reconnected
-        auto con2P1Dir = vecToDir(getPort(con2.portRef1).portPos - pos);
-        insertCon({{node, static_cast<std::size_t>(con2P1Dir)}, con2.portRef1}, con2Net, con1Net);
-        auto newNetRef = getClosNetRef(node);
-        insertCon({{node, static_cast<std::size_t>(reverseDir(con2P1Dir))}, con2.portRef2}, newNetRef,
-                  newNetRef);
+        auto    con2P1Dir = vecToDir(getPort(con2.portRef1).portPos - pos);
+        PortRef nodePortRef{node, static_cast<std::size_t>(con2P1Dir)};
+        insertCon({nodePortRef, con2.portRef1}, con2Net, con1Net);
+        auto newNetRef = getClosNetRef(nodePortRef);
+        insertCon({{node, static_cast<std::size_t>(reverseDir(con2P1Dir))}, con2.portRef2},
+                  newNetRef, newNetRef);
     }
 }
 
@@ -212,24 +213,24 @@ void Block::eraseCon(const Connection& con) {
 // If there isn't one creates one according to what's currently there;
 // Note takes var by ref and may invalidate it (in case of deleting redundant point)
 [[nodiscard]] PortRef Block::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                            Direction dirIntoPort) { // TODO swap port dir
+                                            Direction portDir) {
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
         Ref<Node> node = nodes.insert(Node{pos});
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+        return {node, static_cast<std::size_t>(portDir)};
     }
     case ObjAtCoordType::Con: { // make new node and split connection
         auto node   = nodes.insert(Node{pos});
         auto oldCon = std::get<Connection>(var);
         splitCon(oldCon, node);
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+        return {node, static_cast<std::size_t>(portDir)};
     }
     case ObjAtCoordType::Port: { // return port
         return std::get<PortRef>(var);
     }
     case ObjAtCoordType::Node: { // if redundant delete node else return port
         Ref<Node> node = std::get<Ref<Node>>(var);
-        PortRef   port{node, static_cast<std::size_t>(dirIntoPort)};
+        PortRef   port{node, static_cast<std::size_t>(reverseDir(portDir))};
         auto      parralelPortNet = getClosNetRef(port);
         if (parralelPortNet && getNodeConCount(node) == 1) { // if node is redundant
             auto& net          = nets[parralelPortNet.value()];
@@ -239,7 +240,7 @@ void Block::eraseCon(const Connection& con) {
             var = {}; // prevents deleted node ref being used
             return redundantCon.portRef2;
         }
-        return {node, static_cast<std::size_t>(reverseDir(dirIntoPort))};
+        return {node, static_cast<std::size_t>(portDir)};
     }
     default:
         throw std::logic_error("Cannot make connection to location which isn't viable");
