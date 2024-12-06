@@ -12,7 +12,7 @@
 // editor renderer contains const& to editor and is only responsible for displaying its internal
 // state
 class EditorRenderer {
-    bool      isGridCrosses   = false;
+    bool      isGridCrosses   = true;
     float     defaultViewSize = 35;
     float     zoomFact        = 1.05f;
     float     nameScale       = 1.5f;
@@ -23,9 +23,9 @@ class EditorRenderer {
     sf::Color cursorPointColour{255, 255, 255, 100};
     sf::Color nodeColour   = sf::Color::White;
     sf::Color conColour    = sf::Color::White;
-    sf::Color newConColour = sf::Color::Blue;
-    sf::Color overlapColour{255, 255, 0, 100};
-    sf::Color highlightConColour = sf::Color::Green;
+    sf::Color newConColour = sf::Color::Green;
+    sf::Color overlapColour{255, 102, 0, 150};
+    sf::Color highlightConColour = {102, 255, 255, 255};
     sf::Color errorColour        = sf::Color::Red;
     sf::Color debugConColour     = sf::Color::Magenta;
     sf::Color debugNodeColour    = sf::Color::Yellow;
