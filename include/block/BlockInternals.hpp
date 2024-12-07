@@ -128,7 +128,6 @@ class ClosedNet {
     // void addConnected(const PortRef& curr, ClosedNet& newNet) { newNet.insert(curr) }
 
   public:
-    // [[nodiscard]] const absl::flat_hash_map<PortRef, PortRef>& getMap() const { return conMap; }
     [[nodiscard]] bool                          hasInput() const { return input.has_value(); }
     [[nodiscard]] const std::optional<PortRef>& getInput() const { return input; }
     [[nodiscard]] const std::vector<PortRef>&   getOutputs() const { return outputs; }

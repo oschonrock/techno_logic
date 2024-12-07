@@ -71,7 +71,7 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
 void Block::splitCon(const Connection& oldCon, Ref<Node> node) {
     assert(contains(oldCon));
     auto&     net = nets[getClosNetRef(oldCon.portRef1).value()];
-    Direction dir = vecToDir(nodes[node].pos - getPort(oldCon.portRef1).portPos);
+    Direction dir = vecToDir(getPort(oldCon.portRef1).portPos - nodes[node].pos);
     // TODO implement by calling insert first
     net.erase(oldCon, getPortType(oldCon));
     auto con = Connection(oldCon.portRef1, PortRef{node, static_cast<std::size_t>(dir)});
@@ -155,6 +155,8 @@ ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
 
 void Block::insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
                       const std::optional<Ref<ClosedNet>>& net2) {
+    if (getPort(con.portRef1).portDir != reverseDir(getPort(con.portRef2).portDir))
+        throw std::logic_error("attempted to insert non opposing ports");
     auto portTypes = getPortType(con);
     if (!net1 && !net2) { // make new closed network
         auto netRef = nets.insert(ClosedNet{});
@@ -224,8 +226,8 @@ void Block::eraseCon(const Connection& con) {
 // Returns ref to port at location
 // If there isn't one creates one according to what's currently there;
 // Note takes var by ref and may invalidate it (in case of deleting redundant point)
-[[nodiscard]] PortRef Block::makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                            Direction portDir) {
+[[nodiscard]] PortRef Block::makeNewPortRef(const sf::Vector2i& pos, Direction portDir) {
+    ObjAtCoordVar var = whatIsAtCoord(pos);
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
         Ref<Node> node = nodes.insert(Node{pos});
@@ -242,17 +244,20 @@ void Block::eraseCon(const Connection& con) {
     }
     case ObjAtCoordType::Node: { // if redundant delete node else return port
         Ref<Node> node = std::get<Ref<Node>>(var);
-        PortRef   port{node, static_cast<std::size_t>(reverseDir(portDir))};
-        auto      parralelPortNet = getClosNetRef(port);
-        if (parralelPortNet && getNodeConCount(node) == 1) { // if node is redundant
-            auto& net          = nets[parralelPortNet.value()];
-            auto  redundantCon = net.getCon(port);
+        PortRef   newPort{node, static_cast<std::size_t>(portDir)};
+        if (contains(newPort))
+            throw std::logic_error("makeNewPortRef... port direction already connected");
+        PortRef redundantPort{node, static_cast<std::size_t>(reverseDir(portDir))};
+        auto    redundantPortNet = getClosNetRef(redundantPort);
+        if (redundantPortNet && getNodeConCount(node) == 1) { // if node is redundant
+            auto& net          = nets[redundantPortNet.value()];
+            auto  redundantCon = net.getCon(redundantPort);
             net.erase(redundantCon, getPortType(redundantCon));
             nodes.erase(node);
             var = {}; // prevents deleted node ref being used
             return redundantCon.portRef2;
         }
-        return {node, static_cast<std::size_t>(portDir)};
+        return newPort;
     }
     default:
         throw std::logic_error("Cannot make connection to location which isn't viable");

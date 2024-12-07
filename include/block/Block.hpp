@@ -34,9 +34,11 @@ class Block {
     void splitCon(const Connection& con, Ref<Node> node);
 
   public:
-    std::size_t size = 100;
+    Block(std::string name_, std::size_t size_) : name(name_), size(size_) {}
+
     std::string name;
     std::string description;
+    std::size_t size = 100;
 
     StableVector<BlockInst> blockInstances;
     StableVector<Node>      nodes;
@@ -68,6 +70,5 @@ class Block {
     void insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos);
     void eraseCon(const Connection& con);
 
-    [[nodiscard]] PortRef makeNewPortRef(ObjAtCoordVar& var, const sf::Vector2i& pos,
-                                         Direction dirIntoPort);
+    [[nodiscard]] PortRef makeNewPortRef(const sf::Vector2i& pos, Direction portDir);
 };

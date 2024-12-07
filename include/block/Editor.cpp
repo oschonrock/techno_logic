@@ -52,7 +52,7 @@ bool Editor::isPosLegalStart(const sf::Vector2i& start) const {
 }
 
 std::vector<sf::Vector2i> Editor::getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line,
-                                               Ref<ClosedNet>                        netRef) const {
+                                                Ref<ClosedNet> netRef) const {
     std::vector<sf::Vector2i> pos{};
     for (const auto& netCon: block.nets[netRef]) {
         auto intersec = getLineIntersection(
@@ -65,8 +65,8 @@ std::vector<sf::Vector2i> Editor::getOverlapPos(std::pair<sf::Vector2i, sf::Vect
 std::vector<sf::Vector2i> Editor::getOverlapPos(Ref<ClosedNet> net1, Ref<ClosedNet> net2) const {
     std::vector<sf::Vector2i> pos{};
     for (const auto& con1: block.nets[net1]) {
-        auto con1Pos =
-            getOverlapPos({block.getPort(con1.portRef1).portPos, block.getPort(con1.portRef2).portPos}, net2);
+        auto con1Pos = getOverlapPos(
+            {block.getPort(con1.portRef1).portPos, block.getPort(con1.portRef2).portPos}, net2);
         for (const auto& intersecPos: con1Pos) pos.emplace_back(intersecPos);
     }
     return pos;
@@ -83,14 +83,12 @@ void Editor::updateOverlaps() {
             }
         }
         if (conStartCloNet) {
-            for (const auto& pos:
-                 getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
+            for (const auto& pos: getOverlapPos({conStartPos, conEndPos}, conStartCloNet.value())) {
                 overlapPos.emplace_back(pos);
             }
         }
         if (conEndCloNet) {
-            for (const auto& pos:
-                 getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
+            for (const auto& pos: getOverlapPos({conStartPos, conEndPos}, conEndCloNet.value())) {
                 overlapPos.emplace_back(pos);
             }
         }
@@ -133,10 +131,9 @@ void Editor::event(const sf::Event& event) {
                 state = EditorState::Idle;
                 break;
             }
-            PortRef startPort = block.makeNewPortRef(conStartObjVar, conStartPos,
-                                                     vecToDir(conEndPos - conStartPos));
-            PortRef endPort =
-                block.makeNewPortRef(conEndObjVar, conEndPos, vecToDir(conStartPos - conEndPos));
+            PortRef startPort =
+                block.makeNewPortRef(conStartPos, vecToDir(conEndPos - conStartPos));
+            PortRef    endPort = block.makeNewPortRef(conEndPos, vecToDir(conStartPos - conEndPos));
             Connection con{startPort, endPort};
 
             block.insertCon(con, conStartCloNet, conEndCloNet);
@@ -167,8 +164,7 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             break;
         }
         case ObjAtCoordType::Con: {
-            conStartCloNet =
-                block.getClosNetRef(std::get<Connection>(conStartObjVar).portRef1);
+            conStartCloNet = block.getClosNetRef(std::get<Connection>(conStartObjVar).portRef1);
             break;
         }
         case ObjAtCoordType::ConCross: {
@@ -202,10 +198,10 @@ void Editor::frame(const sf::Vector2i& mousePos) {
             const auto& node     = block.nodes[nodeRef];
             auto        bestPort = std::max_element(
                 node.ports.begin(), node.ports.end(), [&](const auto& max, const auto& elem) {
-                    bool isElemPortInUse = block.contains(
-                        PortRef(nodeRef, static_cast<std::size_t>(elem.portDir)));
-                    bool isMaxPortInUse = block.contains(
-                        PortRef(nodeRef, static_cast<std::size_t>(max.portDir)));
+                    bool isElemPortInUse =
+                        block.contains(PortRef(nodeRef, static_cast<std::size_t>(elem.portDir)));
+                    bool isMaxPortInUse =
+                        block.contains(PortRef(nodeRef, static_cast<std::size_t>(max.portDir)));
                     return isMaxPortInUse ||
                            (dot(max.portDir, diff) < dot(elem.portDir, diff) && !isElemPortInUse);
                 });

@@ -20,8 +20,7 @@ int main() {
     ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::LostFocus));
     ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::GainedFocus));
 
-    Block block{};
-    block.name        = "Example";
+    Block block{"Example", 200};
     block.description = "This is an example block :)";
     Editor         editor{block};
     EditorRenderer rend{editor, window, font};
