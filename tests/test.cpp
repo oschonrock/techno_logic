@@ -90,12 +90,31 @@ TEST_F(BlockTest, splitNode) {
     EXPECT_TRUE(block.nets[net1].isConnected(con1A, con1B));
     block.insertCon(splitCon, net1, net2);
     EXPECT_EQ(block.nets.size(), 1);
-    EXPECT_TRUE(block.nets[net1].contains(splitCon));
+    EXPECT_TRUE(block.nets.begin()->obj.contains(splitCon));
     EXPECT_TRUE(block.nets.begin()->obj.isConnected(con1A, con2B));
 }
 
 TEST_F(BlockTest, overlapNode) {
-    // TODO
+    PortRef    con1A = block.makeNewPortRef({0, 2}, Direction::right);
+    PortRef    con1B = block.makeNewPortRef({5, 2}, Direction::left);
+    Connection con1  = {con1A, con1B};
+    block.insertCon(con1, {}, {});
+    PortRef    con2A = block.makeNewPortRef({2, 0}, Direction::down);
+    PortRef    con2B = block.makeNewPortRef({2, 5}, Direction::up);
+    Connection con2  = {con2A, con2B};
+    block.insertCon(con2, {}, {});
+    EXPECT_EQ(block.nets.size(), 2);
+    EXPECT_EQ(block.nodes.size(), 4);
+    block.insertOverlap(con1, con2, {2, 2});
+    EXPECT_EQ(block.nets.size(), 1);
+    EXPECT_EQ(block.nodes.size(), 5);
+    auto& net  = block.nets.begin()->obj;
+    auto  node = std::get<Ref<Node>>(block.whatIsAtCoord({2, 2}));
+    EXPECT_TRUE(net.contains({con1A, {node, static_cast<std::size_t>(Direction::left)}}));
+    EXPECT_TRUE(net.contains({con1B, {node, static_cast<std::size_t>(Direction::right)}}));
+    EXPECT_TRUE(net.contains({con2A, {node, static_cast<std::size_t>(Direction::up)}}));
+    EXPECT_TRUE(net.contains({con2B, {node, static_cast<std::size_t>(Direction::down)}}));
+    EXPECT_TRUE(net.isConnected(con1A, con2B));
 }
 
 // StableVector
