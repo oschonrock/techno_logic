@@ -19,10 +19,6 @@ struct Node {
 
     // ALWAYS form a connection to node after construction
     Node(const sf::Vector2i& pos_) : pos(pos_) {
-        // ports[0] = {Direction::up, pos, PortType::node};
-        // ports[1] = {Direction::down, pos, PortType::node};
-        // ports[2] = {Direction::left, pos, PortType::node};
-        // ports[3] = {Direction::right, pos, PortType::node};
         ports[0] = {Direction::up, pos};
         ports[1] = {Direction::down, pos};
         ports[2] = {Direction::left, pos};

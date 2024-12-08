@@ -117,6 +117,34 @@ TEST_F(BlockTest, overlapNode) {
     EXPECT_TRUE(net.isConnected(con1A, con2B));
 }
 
+TEST_F(BlockTest, eraseConSplitNet) {
+    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
+    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
+    Connection con1  = {con1A, con1B};
+    block.insertCon(con1, {}, {});
+    PortRef    con2A = block.makeNewPortRef({0, 5}, Direction::right);
+    PortRef    con2B = block.makeNewPortRef({5, 5}, Direction::left);
+    Connection con2  = {con2A, con2B};
+    block.insertCon(con2, {}, {});
+    PortRef    con3A = block.makeNewPortRef({5, 0}, Direction::down);
+    PortRef    con3B = block.makeNewPortRef({5, 5}, Direction::up);
+    Connection con3  = {con3A, con3B};
+    block.insertCon(con3, block.getClosNetRef(con1), block.getClosNetRef(con2));
+    auto& net = block.nets[block.getClosNetRef(con3).value()];
+    EXPECT_TRUE(net.isConnected(con1A, con2B));
+    EXPECT_EQ(block.nodes.size(), 4);
+    EXPECT_EQ(block.nets.size(), 1);
+    block.eraseCon(con3);
+    EXPECT_EQ(block.nets.size(), 2);
+    EXPECT_FALSE(block.getClosNetRef(con3).has_value());
+    auto& net1 = block.nets[block.getClosNetRef(con1).value()];
+    EXPECT_TRUE(net1.isConnected(con1A, con1B));
+    EXPECT_FALSE(net1.isConnected(con1A, con3B));
+    auto& net2 = block.nets[block.getClosNetRef(con2).value()];
+    EXPECT_TRUE(net2.isConnected(con2A, con2B));
+    EXPECT_FALSE(net1.isConnected(con2A, con3A));
+}
+
 // StableVector
 template <typename T, typename Q>
 void equalityCheck(T subj, const std::vector<Q>& vec) { // subj is taken by value
