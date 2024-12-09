@@ -1,68 +1,5 @@
 #include "Block.hpp"
 
-// ClosedNet
-void ClosedNet::maintainIOVecs(bool isInsert, const PortRef& portRef, const PortType& portType) {
-    if (portType == PortType::node) return;
-    if (portType == PortType::input) {
-        if (isInsert) {
-            if (input) throw std::logic_error("Tried to add two inputs to closed graph");
-        } else {
-            input.reset();
-        }
-    } else {
-        if (isInsert) {
-            outputs.push_back(portRef);
-        } else {
-            auto it = std::find(outputs.begin(), outputs.end(), portRef);
-            if (it != outputs.end())
-                throw std::logic_error("Tried to remove output that isn't in closed graph");
-            std::erase(outputs, *it);
-        }
-    }
-}
-
-void ClosedNet::insert(const Connection& con, const std::pair<PortType, PortType>& portTypes) {
-    conMap.insert({con.portRef1, con.portRef2});
-    conMap2.insert({con.portRef2, con.portRef1});
-    ++size;
-    maintainIOVecs(true, con.portRef1, portTypes.first);
-    maintainIOVecs(true, con.portRef2, portTypes.second);
-}
-
-void ClosedNet::erase(const Connection& con, const std::pair<PortType, PortType>& portTypes) {
-    conMap.erase(con.portRef1);
-    conMap.erase(con.portRef2);
-    conMap2.erase(con.portRef1);
-    conMap2.erase(con.portRef2);
-    --size;
-    maintainIOVecs(false, con.portRef1, portTypes.first);
-    maintainIOVecs(false, con.portRef2, portTypes.second);
-}
-
-[[nodiscard]] bool ClosedNet::contains(const PortRef& port) const {
-    return conMap.contains(port) || conMap2.contains(port);
-}
-
-[[nodiscard]] bool ClosedNet::contains(const Connection& con) const {
-    return (conMap.contains(con.portRef1) && conMap.find(con.portRef1)->second == con.portRef2) ||
-           (conMap.contains(con.portRef2) && conMap.find(con.portRef2)->second == con.portRef1);
-}
-
-// prefer call contains() on port
-[[nodiscard]] bool ClosedNet::contains(const Ref<Node> node) const {
-    return contains(PortRef{node, 0}) || contains(PortRef{node, 1}) || contains(PortRef{node, 2}) ||
-           contains(PortRef{node, 3});
-}
-
-[[nodiscard]] Connection ClosedNet::getCon(const PortRef& port) const {
-    if (conMap.contains(port)) {
-        return Connection{port, conMap.find(port)->second};
-    } else if (conMap2.contains(port)) {
-        return Connection{port, conMap2.find(port)->second};
-    }
-    throw std::logic_error("Port not connected to closed net. Did you call contains?");
-}
-
 // Block
 bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) const {
     return isVecBetween(coord, getPort(con.portRef1).portPos, getPort(con.portRef2).portPos);
@@ -203,7 +140,7 @@ void Block::insertOverlap(const Connection& con1, const Connection& con2, const 
 }
 
 void Block::eraseCon(const Connection& con) {
-    auto net = getClosNetRef(con.portRef1);
+    auto net = getClosNetRef(con);
     assert(net.has_value());
     nets[net.value()].erase(con, getPortType(con));
     // delete now disconnected nodes

@@ -96,7 +96,25 @@ class ClosedNet {
     std::vector<PortRef>                  outputs{};
     std::size_t                           size{};
 
-    void maintainIOVecs(bool isInsert, const PortRef& portRef, const PortType& portType);
+    void maintainIOVecs(bool isInsert, const PortRef& portRef, const PortType& portType) {
+        if (portType == PortType::node) return;
+        if (portType == PortType::input) {
+            if (isInsert) {
+                if (input) throw std::logic_error("Tried to add two inputs to closed graph");
+            } else {
+                input.reset();
+            }
+        } else {
+            if (isInsert) {
+                outputs.push_back(portRef);
+            } else {
+                auto it = std::find(outputs.begin(), outputs.end(), portRef);
+                if (it != outputs.end())
+                    throw std::logic_error("Tried to remove output that isn't in closed graph");
+                std::erase(outputs, *it);
+            }
+        }
+    }
     bool isConnected(const PortRef& start, const PortRef& end,
                      absl::flat_hash_set<PortRef>& alreadyChecked) const {
         if (start == end) return true;
@@ -121,6 +139,8 @@ class ClosedNet {
         return false;
     }
 
+    void addConnected() {}
+
     // void addConnected(const PortRef& curr, ClosedNet& newNet) { newNet.insert(curr) }
 
   public:
@@ -129,18 +149,51 @@ class ClosedNet {
     [[nodiscard]] const std::vector<PortRef>&   getOutputs() const { return outputs; }
     [[nodiscard]] std::size_t                   getSize() const { return size; }
 
-    void insert(const Connection& con, const std::pair<PortType, PortType>& portTypes);
-    void erase(const Connection& con, const std::pair<PortType, PortType>& portTypes);
-    [[nodiscard]] bool contains(const PortRef& port) const;
-    [[nodiscard]] bool contains(const Connection& con) const;
+    void insert(const Connection& con, const std::pair<PortType, PortType>& portTypes) {
+        conMap.insert({con.portRef1, con.portRef2});
+        conMap2.insert({con.portRef2, con.portRef1});
+        ++size;
+        maintainIOVecs(true, con.portRef1, portTypes.first);
+        maintainIOVecs(true, con.portRef2, portTypes.second);
+    }
+
+    void erase(const Connection& con, const std::pair<PortType, PortType>& portTypes) {
+        conMap.erase(con.portRef1);
+        conMap.erase(con.portRef2);
+        conMap2.erase(con.portRef1);
+        conMap2.erase(con.portRef2);
+        --size;
+        maintainIOVecs(false, con.portRef1, portTypes.first);
+        maintainIOVecs(false, con.portRef2, portTypes.second);
+    }
+
+    ClosedNet          splitNet(const PortType& startPort);
+    [[nodiscard]] bool contains(const PortRef& port) const {
+        return conMap.contains(port) || conMap2.contains(port);
+    }
+    [[nodiscard]] bool contains(const Connection& con) const {
+        return (conMap.contains(con.portRef1) &&
+                conMap.find(con.portRef1)->second == con.portRef2) ||
+               (conMap.contains(con.portRef2) && conMap.find(con.portRef2)->second == con.portRef1);
+    }
     // prefer call contains() on port
-    [[nodiscard]] bool contains(const Ref<Node> node) const;
-    bool               isConnected(const PortRef& start, const PortRef& end) const {
+    [[nodiscard]] bool contains(const Ref<Node> node) const {
+        return contains(PortRef{node, 0}) || contains(PortRef{node, 1}) ||
+               contains(PortRef{node, 2}) || contains(PortRef{node, 3});
+    }
+    bool isConnected(const PortRef& start, const PortRef& end) const {
         if (!contains(start) || !contains(end)) return false;
         absl::flat_hash_set<PortRef> alreadyChecked{};
         return isConnected(start, end, alreadyChecked);
     }
-    [[nodiscard]] Connection getCon(const PortRef& port) const;
+    [[nodiscard]] Connection getCon(const PortRef& port) const {
+        if (conMap.contains(port)) {
+            return Connection{port, conMap.find(port)->second};
+        } else if (conMap2.contains(port)) {
+            return Connection{port, conMap2.find(port)->second};
+        }
+        throw std::logic_error("Port not connected to closed net. Did you call contains?");
+    }
 
     // NOTE: Destroys network "other". Adds all connections from another network
     void operator+=(const ClosedNet& other) {

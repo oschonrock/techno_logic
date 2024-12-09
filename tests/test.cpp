@@ -117,6 +117,16 @@ TEST_F(BlockTest, overlapNode) {
     EXPECT_TRUE(net.isConnected(con1A, con2B));
 }
 
+TEST_F(BlockTest, eraseConDelNodeAndNet) {
+    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
+    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
+    Connection con1  = {con1A, con1B};
+    block.insertCon(con1, {}, {});
+    block.eraseCon(con1);
+    EXPECT_EQ(block.nodes.size(), 0);
+    EXPECT_EQ(block.nets.size(), 0);
+}
+
 TEST_F(BlockTest, eraseConSplitNet) {
     PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
     PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
