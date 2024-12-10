@@ -53,6 +53,16 @@ class EditorRenderer {
     std::optional<Connection>                   debugCon;
     std::optional<Ref<ClosedNet>>               debugNet;
 
+    static std::string portRefToString(const PortRef& port) {
+        std::string portName = PortObjRefStrings[port.ref.index()] + " ";
+        if (typeOf(port) == PortObjType::Node) {
+            portName += DirectionStrings[port.portNum];
+        } else {
+            portName += std::to_string(port.portNum);
+        }
+        return portName;
+    }
+
     void setViewDefault() {
         float vsScale =
             static_cast<float>(std::min(window.getSize().x, window.getSize().y)) / defaultViewSize;
@@ -265,11 +275,9 @@ class EditorRenderer {
                             }
                             if (conIt != net.obj.end()) {
                                 ImGui::TableSetColumnIndex(3);
-                                ImGui::Selectable(
-                                    PortObjRefStrings[conIt->portRef1.ref.index()].c_str(),
-                                    debugNetHovered, 0,
-                                    {ImGui::GetContentRegionAvail().x / 2.0f,
-                                     ImGui::GetTextLineHeight()});
+                                ImGui::Selectable(portRefToString(conIt->portRef1).c_str(), debugNetHovered, 0,
+                                                  {ImGui::GetContentRegionAvail().x / 2.0f,
+                                                   ImGui::GetTextLineHeight()});
                                 if (ImGui::IsItemHovered() &&
                                     typeOf(conIt->portRef1) == PortObjType::Node) {
                                     debugNode = std::get<Ref<Node>>(conIt->portRef1.ref);
@@ -277,9 +285,7 @@ class EditorRenderer {
                                     ImGui::SetTooltip("Debug node and con");
                                 }
                                 ImGui::SameLine();
-                                ImGui::Selectable(
-                                    PortObjRefStrings[conIt->portRef2.ref.index()].c_str(),
-                                    debugNetHovered);
+                                ImGui::Selectable(portRefToString(conIt->portRef2).c_str(), debugNetHovered);
                                 if (ImGui::IsItemHovered() &&
                                     typeOf(conIt->portRef2) == PortObjType::Node) {
                                     debugNode = std::get<Ref<Node>>(conIt->portRef2.ref);
@@ -323,7 +329,8 @@ class EditorRenderer {
             sf::Color col = conColour;
             if (debugNet && debugNet.value() == net.ind) // sneaky debug overlay... rest down
                 col = debugConColour;
-            else if ((editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
+            else if (editor.state == Editor::EditorState::Connecting &&
+                         (editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
                      (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind)) {
                 col = highlightConColour; // editor hover color
             }

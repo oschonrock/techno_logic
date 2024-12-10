@@ -6,8 +6,10 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
+#include <array>
 
 enum struct Direction : std::size_t { up = 0, down = 1, left = 2, right = 3 };
+static constexpr std::array<std::string, 4> DirectionStrings{"up", "down", "left", "right"};
 
 inline sf::Vector2i dirToVec(Direction dir) {
     switch (dir) {
