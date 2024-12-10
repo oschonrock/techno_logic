@@ -139,7 +139,27 @@ class ClosedNet {
         return false;
     }
 
-    void addConnected() {}
+    void stealConnetedCons(const PortRef& currentPort, ClosedNet& newNet) {
+        if (contains(currentPort) && !newNet.contains(currentPort)) {
+            auto currentCon = getCon(currentPort);
+            // don't update input/output for now
+            newNet.insert(currentCon, {PortType::node, PortType::node});
+            erase(currentCon, {PortType::node, PortType::node});
+            stealConnetedCons(currentCon.portRef2, newNet);
+        }
+        if (typeOf(currentPort) == PortObjType::Node) {
+            for (std::size_t portNum = 0; portNum < 4; ++portNum) {
+                PortRef nodePort{currentPort.ref, portNum};
+                if (contains(nodePort) && !newNet.contains(nodePort)) {
+                    auto currentCon = getCon(nodePort);
+                    // don't update input/output for now
+                    newNet.insert(currentCon, {PortType::node, PortType::node});
+                    erase(currentCon, {PortType::node, PortType::node});
+                    stealConnetedCons(currentCon.portRef2, newNet);
+                }
+            }
+        }
+    }
 
     // void addConnected(const PortRef& curr, ClosedNet& newNet) { newNet.insert(curr) }
 
@@ -167,7 +187,19 @@ class ClosedNet {
         maintainIOVecs(false, con.portRef2, portTypes.second);
     }
 
-    ClosedNet          splitNet(const PortType& startPort);
+    ClosedNet splitNet(const PortRef& startPort) {
+        ClosedNet newNet{};
+        stealConnetedCons(startPort, newNet);
+        // for (const auto& con: newNet) {
+        //     erase(const Connection &con, const std::pair<PortType, PortType> &portTypes)
+        // }
+        outputs.erase(std::remove_if(outputs.begin(), outputs.end(), [&](auto& output) {
+            return contains(output) && newNet.contains(output); // output has been copied
+        }));
+        if (input.has_value() && newNet.contains(input.value()))
+            input.reset(); // input has been copied
+        return newNet;
+    }
     [[nodiscard]] bool contains(const PortRef& port) const {
         return conMap.contains(port) || conMap2.contains(port);
     }

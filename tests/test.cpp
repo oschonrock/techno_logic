@@ -148,9 +148,11 @@ TEST_F(BlockTest, eraseConSplitNet) {
     EXPECT_EQ(block.nets.size(), 2);
     EXPECT_FALSE(block.getClosNetRef(con3).has_value());
     auto& net1 = block.nets[block.getClosNetRef(con1).value()];
+    EXPECT_EQ(net1.getSize(), 1);
     EXPECT_TRUE(net1.isConnected(con1A, con1B));
     EXPECT_FALSE(net1.isConnected(con1A, con3B));
     auto& net2 = block.nets[block.getClosNetRef(con2).value()];
+    EXPECT_EQ(net2.getSize(), 1);
     EXPECT_TRUE(net2.isConnected(con2A, con2B));
     EXPECT_FALSE(net1.isConnected(con2A, con3A));
 }

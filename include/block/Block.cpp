@@ -82,7 +82,9 @@ ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
 }
 
 [[nodiscard]] std::size_t Block::getNodeConCount(const Ref<Node>& node) const {
-    const auto& net   = nets[getClosNetRef(node).value()]; // connection assumed because node
+    auto ref = getClosNetRef(node);
+    if (!ref) return 0;
+    const auto& net   = nets[ref.value()]; // connection assumed because node
     std::size_t count = 0;
     for (std::size_t port = 0; port < 4; ++port) {
         if (net.contains(PortRef{node, port})) ++count;
@@ -140,23 +142,34 @@ void Block::insertOverlap(const Connection& con1, const Connection& con2, const 
 }
 
 void Block::eraseCon(const Connection& con) {
-    auto net = getClosNetRef(con);
-    assert(net.has_value());
-    nets[net.value()].erase(con, getPortType(con));
-    // delete now disconnected nodes
-    if (typeOf(con.portRef1) == PortObjType::Node) {
-        auto node = std::get<Ref<Node>>(con.portRef1.ref);
-        if (getNodeConCount(node) == 0) {
-            nodes.erase(node);
+    auto netRef = getClosNetRef(con);
+    if (!netRef.has_value()) throw std::logic_error("tried to delete non existant con");
+    auto& net = nets[netRef.value()];
+    net.erase(con, getPortType(con));
+    if (!net.isConnected(con.portRef1, con.portRef2)) { // network split
+        std::cout << "nets split";
+        auto newNet = net.splitNet(con.portRef1);
+        if (newNet.getSize() != 0) { // add new net
+            std::cout << "new net added \n";
+            nets.insert(newNet);
         }
-    }
-    if (typeOf(con.portRef2) == PortObjType::Node) {
-        auto node = std::get<Ref<Node>>(con.portRef2.ref);
-        if (getNodeConCount(node) == 0) {
-            nodes.erase(node);
+        if (net.getSize() == 0) { // delete old net
+            std::cout << "old net deleted \n";
+            nets.erase(netRef.value());
         }
-    }
-    if (!nets[net.value()].isConnected(con.portRef1, con.portRef2)) { // network split
+        // delete now disconnected nodes
+        if (typeOf(con.portRef1) == PortObjType::Node) {
+            auto node = std::get<Ref<Node>>(con.portRef1.ref);
+            if (getNodeConCount(node) == 0) {
+                nodes.erase(node);
+            }
+        }
+        if (typeOf(con.portRef2) == PortObjType::Node) {
+            auto node = std::get<Ref<Node>>(con.portRef2.ref);
+            if (getNodeConCount(node) == 0) {
+                nodes.erase(node);
+            }
+        }
     }
 }
 
