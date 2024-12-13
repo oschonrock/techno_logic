@@ -13,12 +13,13 @@ class Editor {
     getOverlapPos(std::pair<sf::Vector2i, sf::Vector2i> line, Ref<ClosedNet> netRef) const;
     [[nodiscard]] std::vector<sf::Vector2i> getOverlapPos(Ref<ClosedNet> net1,
                                                           Ref<ClosedNet> net2) const;
-    void updateOverlaps();
+    void                                    updateOverlaps();
+    void                                    resetToIdle();
 
   public:
     Editor(Block& block_) : block(block_) {}
 
-    enum struct EditorState { Idle, Connecting };
+    enum struct EditorState { Idle, Connecting, Deleting };
     EditorState state = EditorState::Idle;
 
     Block& block;
@@ -31,7 +32,12 @@ class Editor {
     std::optional<Ref<ClosedNet>> conEndCloNet;
     bool                          conStartLegal;
     bool                          conEndLegal;
-    std::vector<sf::Vector2i>     overlapPos;
+
+    std::vector<sf::Vector2i> overlapPos;
+
+    sf::Vector2i  delPos;
+    ObjAtCoordVar delObjVar;
+    bool          delLegal;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const; // should be in block
     void         event(const sf::Event& event);

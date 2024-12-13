@@ -127,7 +127,30 @@ TEST_F(BlockTest, eraseConDelNodeAndNet) {
     EXPECT_EQ(block.nets.size(), 0);
 }
 
-TEST_F(BlockTest, eraseConSplitNet) {
+TEST_F(BlockTest, eraseConSplitNet1) {
+    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
+    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
+    Connection con1  = {con1A, con1B};
+    block.insertCon(con1, {}, {});
+    PortRef    con2A  = block.makeNewPortRef({5, 0}, Direction::down);
+    PortRef    con2B  = block.makeNewPortRef({5, 5}, Direction::up);
+    Connection con2   = {con2A, con2B};
+    auto       netRef = block.getClosNetRef(con1).value();
+    block.insertCon(con2, netRef, {});
+    EXPECT_TRUE(block.nets[netRef].isConnected(con1A, con2B));
+    EXPECT_EQ(block.nodes.size(), 3);
+    EXPECT_EQ(block.nets.size(), 1);
+    block.eraseCon(con2);
+    EXPECT_EQ(block.nodes.size(), 2);
+    EXPECT_EQ(block.nets.size(), 1);
+    EXPECT_FALSE(block.getClosNetRef(con2).has_value());
+    auto& net1 = block.nets[block.getClosNetRef(con1).value()];
+    EXPECT_EQ(net1.getSize(), 1);
+    EXPECT_TRUE(net1.isConnected(con1A, con1B));
+    EXPECT_FALSE(net1.isConnected(con1A, con2B));
+}
+
+TEST_F(BlockTest, eraseConSplitNet2) {
     PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
     PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
     Connection con1  = {con1A, con1B};

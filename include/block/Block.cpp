@@ -147,20 +147,23 @@ void Block::eraseCon(const Connection& con) {
     auto& net = nets[netRef.value()];
     net.erase(con, getPortType(con));
     if (!net.isConnected(con.portRef1, con.portRef2)) { // network split
-        std::cout << "nets split";
+        std::cout << "nets split" << std::endl;
         auto newNet = net.splitNet(con.portRef1);
         if (newNet.getSize() != 0) { // add new net
-            std::cout << "new net added \n";
+            std::cout << "new net added" << std::endl;
             nets.insert(newNet);
+            net = nets[netRef.value()]; // net& invalidated by insert
         }
         if (net.getSize() == 0) { // delete old net
-            std::cout << "old net deleted \n";
+            std::cout << "old net deleted" << std::endl;
             nets.erase(netRef.value());
         }
+        std::cout << "erase finisehed" << std::endl;
         // delete now disconnected nodes
         if (typeOf(con.portRef1) == PortObjType::Node) {
             auto node = std::get<Ref<Node>>(con.portRef1.ref);
             if (getNodeConCount(node) == 0) {
+                std::cout << "erase finisehed" << std::endl;
                 nodes.erase(node);
             }
         }
@@ -170,12 +173,12 @@ void Block::eraseCon(const Connection& con) {
                 nodes.erase(node);
             }
         }
+        std::cout << "erase func finisehed" << std::endl;
     }
 }
 
 // Returns ref to port at location
 // If there isn't one creates one according to what's currently there;
-// Note takes var by ref and may invalidate it (in case of deleting redundant point)
 [[nodiscard]] PortRef Block::makeNewPortRef(const sf::Vector2i& pos, Direction portDir) {
     ObjAtCoordVar var = whatIsAtCoord(pos);
     switch (typeOf(var)) {

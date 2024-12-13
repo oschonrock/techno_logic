@@ -95,6 +95,13 @@ void Editor::updateOverlaps() {
     }
 }
 
+void Editor::resetToIdle() {
+    conEndCloNet.reset();
+    conStartCloNet.reset();
+    overlapPos.clear();
+    state = EditorState::Idle;
+}
+
 sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
     return {std::clamp(static_cast<int>(std::round(pos.x)), 0, static_cast<int>(block.size - 1)),
             std::clamp(static_cast<int>(std::round(pos.y)), 0, static_cast<int>(block.size - 1))};
@@ -105,10 +112,10 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
 // E.g. create destroy objects
 void Editor::event(const sf::Event& event) {
     if (event.type == sf::Event::MouseButtonPressed &&
-        event.mouseButton.button == sf::Mouse::Right) { // reset
-        state = EditorState::Idle;
-    } else if (event.type == sf::Event::MouseButtonReleased &&
-               event.mouseButton.button == sf::Mouse::Left) {
+        event.mouseButton.button == sf::Mouse::Right) // reset
+        resetToIdle();
+    else if (event.type == sf::Event::MouseButtonReleased &&
+             event.mouseButton.button == sf::Mouse::Left) {
         switch (state) {
         case EditorState::Idle: { // new connection started
             if (!conStartLegal) break;
@@ -138,11 +145,28 @@ void Editor::event(const sf::Event& event) {
 
             block.insertCon(con, conStartCloNet, conEndCloNet);
             // net refs invalidated in case of network combination
-            conEndCloNet.reset();
-            conStartCloNet.reset();
-            state = EditorState::Idle;
+            resetToIdle();
             break;
         }
+        case EditorState::Deleting: {
+            if (!delLegal) break;
+            if (typeOf(delObjVar) == ObjAtCoordType::Con) {
+                block.eraseCon(std::get<Connection>(delObjVar));
+            } else {
+                throw std::runtime_error("ahhhh deleting for this type not implemented yet");
+            }
+        }
+        }
+    }
+    if (event.type == sf::Event::KeyPressed ||
+        event.type == sf::Event::KeyReleased) { // all keyboard events grouped by key
+        if (event.key.code == sf::Keyboard::Key::LShift) {
+            if (event.type == sf::Event::KeyPressed) {
+                resetToIdle();
+                state = EditorState::Deleting;
+            } else { // on release reset
+                resetToIdle();
+            }
         }
     }
 }
@@ -247,6 +271,22 @@ void Editor::frame(const sf::Vector2i& mousePos) {
         }
         updateOverlaps();
         break;
+    }
+    case EditorState::Deleting: {
+        ImGui::SetTooltip("Deleting");
+        delPos    = mousePos;
+        delObjVar = block.whatIsAtCoord(delPos);
+        delLegal  = false;
+        switch (typeOf(delObjVar)) {
+        case ObjAtCoordType::Empty:
+            break;
+        case ObjAtCoordType::Con:
+            delLegal = true;
+            break;
+        default:
+            ImGui::SetTooltip("Delete not yet implemented for this object");
+            break;
+        }
     }
     }
 }

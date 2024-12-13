@@ -275,7 +275,8 @@ class EditorRenderer {
                             }
                             if (conIt != net.obj.end()) {
                                 ImGui::TableSetColumnIndex(3);
-                                ImGui::Selectable(portRefToString(conIt->portRef1).c_str(), debugNetHovered, 0,
+                                ImGui::Selectable(portRefToString(conIt->portRef1).c_str(),
+                                                  debugNetHovered, 0,
                                                   {ImGui::GetContentRegionAvail().x / 2.0f,
                                                    ImGui::GetTextLineHeight()});
                                 if (ImGui::IsItemHovered() &&
@@ -285,7 +286,8 @@ class EditorRenderer {
                                     ImGui::SetTooltip("Debug node and con");
                                 }
                                 ImGui::SameLine();
-                                ImGui::Selectable(portRefToString(conIt->portRef2).c_str(), debugNetHovered);
+                                ImGui::Selectable(portRefToString(conIt->portRef2).c_str(),
+                                                  debugNetHovered);
                                 if (ImGui::IsItemHovered() &&
                                     typeOf(conIt->portRef2) == PortObjType::Node) {
                                     debugNode = std::get<Ref<Node>>(conIt->portRef2.ref);
@@ -369,13 +371,26 @@ class EditorRenderer {
             }
             break;
         case Editor::EditorState::Connecting:
-
             if (editor.conEndLegal) {
                 drawSingleLine(lineVertecies, editor.conStartPos, editor.conEndPos, newConColour);
                 drawNode(editor.conEndPos, newNodeScale * nodeRad, newConColour);
             }
             drawNode(editor.conStartPos, newNodeScale * nodeRad,
                      editor.conEndLegal ? newConColour : errorColour);
+            break;
+        case Editor::EditorState::Deleting:
+            if (editor.delLegal) {
+                switch (typeOf(editor.delObjVar)) {
+                case ObjAtCoordType::Con: {
+                    auto con = std::get<Connection>(editor.delObjVar);
+                    drawSingleLine(lineVertecies, block.getPort(con.portRef1).portPos,
+                                   block.getPort(con.portRef2).portPos, sf::Color::Red);
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
         }
 
         // Debug overlays
