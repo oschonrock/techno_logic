@@ -29,9 +29,12 @@ inline bool isCoordConType(const ObjAtCoordVar& ref) {
 }
 
 class Block {
-  private:
+  protected:
     bool collisionCheck(const Connection& con, const sf::Vector2i& coord) const;
-    void splitCon(const Connection& con, Ref<Node> node);
+
+    [[nodiscard]] PortRef makeNewPortRef(const sf::Vector2i& pos, Direction portDir);
+    void                  insertCon(const Connection& con);
+    void                  splitCon(const Connection& con, Ref<Node> node);
 
   public:
     Block(std::string name_, std::size_t size_) : name(name_), size(size_) {}
@@ -46,7 +49,7 @@ class Block {
     StableVector<ClosedNet> nets;
     std::vector<Port>       ports;
 
-    PortInst&                     getPort(const PortRef& port);
+    // PortInst&                     getPort(const PortRef& port);
     const PortInst&               getPort(const PortRef& port) const;
     PortType                      getPortType(const PortRef& port) const;
     std::pair<PortType, PortType> getPortType(const Connection& con) const;
@@ -65,10 +68,7 @@ class Block {
     }
     [[nodiscard]] std::size_t getNodeConCount(const Ref<Node>& node) const;
 
-    void insertCon(const Connection& con, const std::optional<Ref<ClosedNet>>& net1,
-                   const std::optional<Ref<ClosedNet>>& net2);
+    Connection addConnection(const sf::Vector2i& startPos, const sf::Vector2i& endPos);
     void insertOverlap(const Connection& con1, const Connection& con2, const sf::Vector2i& pos);
     void eraseCon(const Connection& con);
-
-    [[nodiscard]] PortRef makeNewPortRef(const sf::Vector2i& pos, Direction portDir);
 };

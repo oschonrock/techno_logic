@@ -6,178 +6,153 @@
 #include "details/StableVector.hpp"
 
 // Block
-class BlockTest : public testing::Test {
-  protected:
-    Block block{"test", 50};
+class BlockTest : public testing::Test, public Block {
+  public:
+    BlockTest() : Block("test", 50) {}
 };
 
 TEST_F(BlockTest, constructor) {
-    EXPECT_TRUE(block.nodes.empty());
-    EXPECT_TRUE(block.nets.empty());
-    EXPECT_TRUE(block.blockInstances.empty());
+    EXPECT_TRUE(nodes.empty());
+    EXPECT_TRUE(nets.empty());
+    EXPECT_TRUE(blockInstances.empty());
 }
 
 TEST_F(BlockTest, makeNewPortAtEmpty) {
     sf::Vector2i pos        = {21, 21};
-    auto         emptyPoint = block.whatIsAtCoord(pos);
+    auto         emptyPoint = whatIsAtCoord(pos);
     EXPECT_EQ(ObjAtCoordType::Empty, typeOf(emptyPoint));
-    auto newPort = block.makeNewPortRef(pos, Direction::up);
+    auto newPort = makeNewPortRef(pos, Direction::up);
     EXPECT_EQ(PortObjType::Node, typeOf(newPort));
     EXPECT_EQ(Direction::up, Direction(newPort.portNum));
-    auto nodePoint = block.whatIsAtCoord(pos);
+    auto nodePoint = whatIsAtCoord(pos);
     EXPECT_EQ(ObjAtCoordType::Node, typeOf(nodePoint));
     auto nodeRef = std::get<Ref<Node>>(nodePoint);
     EXPECT_EQ(nodeRef, std::get<Ref<Node>>(newPort.ref));
-    EXPECT_EQ(block.nodes.size(), 1);
-    EXPECT_TRUE(block.nodes.contains(nodeRef));
+    EXPECT_EQ(nodes.size(), 1);
+    EXPECT_TRUE(nodes.contains(nodeRef));
 }
 
 TEST_F(BlockTest, makeEmptyToEmptyCon) {
     sf::Vector2i pos        = {21, 21};
-    auto         firstPort  = block.makeNewPortRef(pos, Direction::up);
+    auto         firstPort  = makeNewPortRef(pos, Direction::up);
     sf::Vector2i secondPos  = {21, 13};
-    auto         secondPort = block.makeNewPortRef(secondPos, Direction::up); // wrong dir
-    EXPECT_ANY_THROW(block.insertCon({firstPort, secondPort}, {}, {}));
-    secondPort = block.makeNewPortRef(secondPos, Direction::down); // right dir
+    auto         secondPort = makeNewPortRef(secondPos, Direction::up); // wrong dir
+    EXPECT_ANY_THROW(insertCon({firstPort, secondPort}));
+    secondPort = makeNewPortRef(secondPos, Direction::down); // right dir
     Connection con{firstPort, secondPort};
-    block.insertCon(con, {}, {});
-    auto net = block.getClosNetRef(con);
+    insertCon(con);
+    auto net = getClosNetRef(con);
     ASSERT_TRUE(net.has_value());
-    EXPECT_EQ(net.value(), block.getClosNetRef(firstPort).value());
-    EXPECT_EQ(net.value(), block.getClosNetRef(secondPort).value());
-    auto conPoint = block.whatIsAtCoord((secondPos + pos) / 2);
+    EXPECT_EQ(net.value(), getClosNetRef(firstPort).value());
+    EXPECT_EQ(net.value(), getClosNetRef(secondPort).value());
+    auto conPoint = whatIsAtCoord((secondPos + pos) / 2);
     EXPECT_EQ(ObjAtCoordType::Con, typeOf(conPoint));
     EXPECT_EQ(std::get<Connection>(conPoint), con);
 }
 
 TEST_F(BlockTest, makeNewPortAtNode) {
     sf::Vector2i startPos  = {0, 0};
-    auto         startPort = block.makeNewPortRef(startPos, Direction::down);
-    EXPECT_EQ(startPort, block.makeNewPortRef(startPos, Direction::down)); // not made yet so ok
-    auto       endPort = block.makeNewPortRef({0, 10}, Direction::up);
+    auto         startPort = makeNewPortRef(startPos, Direction::down);
+    EXPECT_EQ(startPort, makeNewPortRef(startPos, Direction::down)); // not made yet so ok
+    auto       endPort = makeNewPortRef({0, 10}, Direction::up);
     Connection con{startPort, endPort};
-    block.insertCon(con, {}, {});
-    EXPECT_ANY_THROW(std::ignore = block.makeNewPortRef(startPos, Direction::down));
-    auto       startPort2 = block.makeNewPortRef(startPos, Direction::right);
-    auto       endPort2   = block.makeNewPortRef({10, 0}, Direction::left);
+    insertCon(con);
+    EXPECT_ANY_THROW(std::ignore = makeNewPortRef(startPos, Direction::down));
+    auto       startPort2 = makeNewPortRef(startPos, Direction::right);
+    auto       endPort2   = makeNewPortRef({10, 0}, Direction::left);
     Connection con2{startPort2, endPort2};
-    block.insertCon(con2, block.getClosNetRef(startPort), {});
-    EXPECT_EQ(block.nets.size(), 1);
-    EXPECT_EQ(block.nodes.size(), 3);
-    EXPECT_EQ(block.getNodeConCount(std::get<Ref<Node>>(startPort.ref)), 2);
-    auto& net = *block.nets.begin();
+    insertCon(con2);
+    EXPECT_EQ(nets.size(), 1);
+    EXPECT_EQ(nodes.size(), 3);
+    EXPECT_EQ(getNodeConCount(std::get<Ref<Node>>(startPort.ref)), 2);
+    auto& net = *nets.begin();
     EXPECT_TRUE(net.obj.isConnected(endPort, endPort2));
 }
 
-TEST_F(BlockTest, splitNode) {
-    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
-    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
-    Connection con1  = {con1A, con1B};
-    block.insertCon(con1, {}, {});
-    PortRef    con2B = block.makeNewPortRef({5, 5}, Direction::left);
-    Connection con2{block.makeNewPortRef({0, 5}, Direction::right), con2B};
-    block.insertCon(con2, {}, {});
-    auto       net1          = block.getClosNetRef(con1).value();
-    auto       net2          = block.getClosNetRef(con2).value();
-    PortRef    splitConPort1 = block.makeNewPortRef({2, 0}, Direction::down);
-    Connection splitCon{splitConPort1, block.makeNewPortRef({2, 5}, Direction::up)};
-    EXPECT_EQ(block.nodes.size(), 6);
-    EXPECT_FALSE(block.nets[net1].contains(con1));
-    EXPECT_TRUE(block.nets[net1].contains(
-        {con1A, {splitConPort1.ref, static_cast<size_t>(Direction::left)}}));
-    EXPECT_TRUE(block.nets[net1].contains(
-        {con1B, {splitConPort1.ref, static_cast<size_t>(Direction::right)}}));
-    EXPECT_TRUE(block.nets[net1].isConnected(con1A, con1B));
-    block.insertCon(splitCon, net1, net2);
-    EXPECT_EQ(block.nets.size(), 1);
-    EXPECT_TRUE(block.nets.begin()->obj.contains(splitCon));
-    EXPECT_TRUE(block.nets.begin()->obj.isConnected(con1A, con2B));
+TEST_F(BlockTest, splitConnection1) {
+    Connection con1         = addConnection({0, 0}, {5, 0});
+    PortRef    splitConPort = makeNewPortRef({2, 0}, Direction::down);
+    auto&      net          = nets[getClosNetRef(con1.portRef1).value()];
+    EXPECT_EQ(nodes.size(), 3);
+    EXPECT_EQ(nets.size(), 1);
+    EXPECT_EQ(net.getSize(), 2);
+    EXPECT_FALSE(net.contains(con1));
+    EXPECT_TRUE(
+        net.contains({con1.portRef1, {splitConPort.ref, static_cast<size_t>(Direction::left)}}));
+    EXPECT_TRUE(
+        net.contains({con1.portRef2, {splitConPort.ref, static_cast<size_t>(Direction::right)}}));
+    EXPECT_TRUE(net.isConnected(con1.portRef1, con1.portRef2));
+}
+
+TEST_F(BlockTest, splitConnection2) {
+    Connection con1     = addConnection({0, 0}, {5, 0});
+    Connection con2     = addConnection({0, 5}, {5, 5});
+    Connection splitCon = addConnection({2, 0}, {2, 5});
+    EXPECT_EQ(nodes.size(), 6);
+    insertCon(splitCon);
+    EXPECT_EQ(nets.size(), 1);
+    EXPECT_TRUE(nets.begin()->obj.contains(splitCon));
+    EXPECT_TRUE(nets.begin()->obj.isConnected(con1.portRef1, con2.portRef2));
 }
 
 TEST_F(BlockTest, overlapNode) {
-    PortRef    con1A = block.makeNewPortRef({0, 2}, Direction::right);
-    PortRef    con1B = block.makeNewPortRef({5, 2}, Direction::left);
-    Connection con1  = {con1A, con1B};
-    block.insertCon(con1, {}, {});
-    PortRef    con2A = block.makeNewPortRef({2, 0}, Direction::down);
-    PortRef    con2B = block.makeNewPortRef({2, 5}, Direction::up);
-    Connection con2  = {con2A, con2B};
-    block.insertCon(con2, {}, {});
-    EXPECT_EQ(block.nets.size(), 2);
-    EXPECT_EQ(block.nodes.size(), 4);
-    block.insertOverlap(con1, con2, {2, 2});
-    EXPECT_EQ(block.nets.size(), 1);
-    EXPECT_EQ(block.nodes.size(), 5);
-    auto& net  = block.nets.begin()->obj;
-    auto  node = std::get<Ref<Node>>(block.whatIsAtCoord({2, 2}));
-    EXPECT_TRUE(net.contains({con1A, {node, static_cast<std::size_t>(Direction::left)}}));
-    EXPECT_TRUE(net.contains({con1B, {node, static_cast<std::size_t>(Direction::right)}}));
-    EXPECT_TRUE(net.contains({con2A, {node, static_cast<std::size_t>(Direction::up)}}));
-    EXPECT_TRUE(net.contains({con2B, {node, static_cast<std::size_t>(Direction::down)}}));
-    EXPECT_TRUE(net.isConnected(con1A, con2B));
+    Connection con1 = addConnection({0, 2}, {5, 2});
+    Connection con2 = addConnection({2, 0}, {2, 5});
+    EXPECT_EQ(nets.size(), 2);
+    EXPECT_EQ(nodes.size(), 4);
+    insertOverlap(con1, con2, {2, 2});
+    EXPECT_EQ(nets.size(), 1);
+    EXPECT_EQ(nodes.size(), 5);
+    auto& net      = nets.begin()->obj;
+    auto  coordObj = whatIsAtCoord({2, 2});
+    ASSERT_EQ(typeOf(coordObj), ObjAtCoordType::Node);
+    auto node = std::get<Ref<Node>>(coordObj);
+    EXPECT_TRUE(net.contains({con1.portRef1, {node, static_cast<std::size_t>(Direction::left)}}));
+    EXPECT_TRUE(net.contains({con1.portRef2, {node, static_cast<std::size_t>(Direction::right)}}));
+    EXPECT_TRUE(net.contains({con2.portRef1, {node, static_cast<std::size_t>(Direction::up)}}));
+    EXPECT_TRUE(net.contains({con2.portRef2, {node, static_cast<std::size_t>(Direction::down)}}));
+    EXPECT_TRUE(net.isConnected(con1.portRef1, con2.portRef2));
 }
 
 TEST_F(BlockTest, eraseConDelNodeAndNet) {
-    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
-    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
-    Connection con1  = {con1A, con1B};
-    block.insertCon(con1, {}, {});
-    block.eraseCon(con1);
-    EXPECT_EQ(block.nodes.size(), 0);
-    EXPECT_EQ(block.nets.size(), 0);
+    Connection con1 = addConnection({0, 0}, {5, 0});
+    eraseCon(con1);
+    EXPECT_EQ(nodes.size(), 0);
+    EXPECT_EQ(nets.size(), 0);
 }
 
 TEST_F(BlockTest, eraseConSplitNet1) {
-    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
-    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
-    Connection con1  = {con1A, con1B};
-    block.insertCon(con1, {}, {});
-    PortRef    con2A  = block.makeNewPortRef({5, 0}, Direction::down);
-    PortRef    con2B  = block.makeNewPortRef({5, 5}, Direction::up);
-    Connection con2   = {con2A, con2B};
-    auto       netRef = block.getClosNetRef(con1).value();
-    block.insertCon(con2, netRef, {});
-    EXPECT_TRUE(block.nets[netRef].isConnected(con1A, con2B));
-    EXPECT_EQ(block.nodes.size(), 3);
-    EXPECT_EQ(block.nets.size(), 1);
-    block.eraseCon(con2);
-    EXPECT_EQ(block.nodes.size(), 2);
-    EXPECT_EQ(block.nets.size(), 1);
-    EXPECT_FALSE(block.getClosNetRef(con2).has_value());
-    auto& net1 = block.nets[block.getClosNetRef(con1).value()];
+    Connection con1   = addConnection({0, 0}, {5, 0});
+    Connection con2   = addConnection({5, 0}, {5, 5});
+    auto       netRef = getClosNetRef(con1).value();
+    EXPECT_TRUE(nets[netRef].isConnected(con1.portRef1, con2.portRef2));
+    EXPECT_EQ(nodes.size(), 3);
+    EXPECT_EQ(nets.size(), 1);
+    eraseCon(con2);
+    EXPECT_EQ(nodes.size(), 2);
+    EXPECT_EQ(nets.size(), 1);
+    auto& net1 = nets[getClosNetRef(con1).value()];
     EXPECT_EQ(net1.getSize(), 1);
-    EXPECT_TRUE(net1.isConnected(con1A, con1B));
-    EXPECT_FALSE(net1.isConnected(con1A, con2B));
+    EXPECT_TRUE(net1.contains(con1));
+    EXPECT_FALSE(net1.contains(con2));
+    EXPECT_FALSE(net1.isConnected(con1.portRef1, con2.portRef2));
 }
 
 TEST_F(BlockTest, eraseConSplitNet2) {
-    PortRef    con1A = block.makeNewPortRef({0, 0}, Direction::right);
-    PortRef    con1B = block.makeNewPortRef({5, 0}, Direction::left);
-    Connection con1  = {con1A, con1B};
-    block.insertCon(con1, {}, {});
-    PortRef    con2A = block.makeNewPortRef({0, 5}, Direction::right);
-    PortRef    con2B = block.makeNewPortRef({5, 5}, Direction::left);
-    Connection con2  = {con2A, con2B};
-    block.insertCon(con2, {}, {});
-    PortRef    con3A = block.makeNewPortRef({5, 0}, Direction::down);
-    PortRef    con3B = block.makeNewPortRef({5, 5}, Direction::up);
-    Connection con3  = {con3A, con3B};
-    block.insertCon(con3, block.getClosNetRef(con1), block.getClosNetRef(con2));
-    auto& net = block.nets[block.getClosNetRef(con3).value()];
-    EXPECT_TRUE(net.isConnected(con1A, con2B));
-    EXPECT_EQ(block.nodes.size(), 4);
-    EXPECT_EQ(block.nets.size(), 1);
-    block.eraseCon(con3);
-    EXPECT_EQ(block.nets.size(), 2);
-    EXPECT_FALSE(block.getClosNetRef(con3).has_value());
-    auto& net1 = block.nets[block.getClosNetRef(con1).value()];
+    Connection con1 = addConnection({0, 0}, {5, 0});
+    Connection con2 = addConnection({0, 5}, {5, 5});
+    Connection con3 = addConnection({5, 0}, {5, 5});
+    auto&      net  = nets[getClosNetRef(con3).value()];
+    EXPECT_TRUE(net.isConnected(con1.portRef1, con2.portRef2));
+    EXPECT_EQ(nodes.size(), 4);
+    EXPECT_EQ(nets.size(), 1);
+    eraseCon(con3);
+    EXPECT_EQ(nets.size(), 2);
+    EXPECT_FALSE(getClosNetRef(con3).has_value());
+    auto& net1 = nets[getClosNetRef(con1).value()];
     EXPECT_EQ(net1.getSize(), 1);
-    EXPECT_TRUE(net1.isConnected(con1A, con1B));
-    EXPECT_FALSE(net1.isConnected(con1A, con3B));
-    auto& net2 = block.nets[block.getClosNetRef(con2).value()];
+    auto& net2 = nets[getClosNetRef(con2).value()];
     EXPECT_EQ(net2.getSize(), 1);
-    EXPECT_TRUE(net2.isConnected(con2A, con2B));
-    EXPECT_FALSE(net1.isConnected(con2A, con3A));
 }
 
 // StableVector

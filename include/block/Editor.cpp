@@ -138,12 +138,8 @@ void Editor::event(const sf::Event& event) {
                 state = EditorState::Idle;
                 break;
             }
-            PortRef startPort =
-                block.makeNewPortRef(conStartPos, vecToDir(conEndPos - conStartPos));
-            PortRef    endPort = block.makeNewPortRef(conEndPos, vecToDir(conStartPos - conEndPos));
-            Connection con{startPort, endPort};
-
-            block.insertCon(con, conStartCloNet, conEndCloNet);
+            
+            block.addConnection(conStartPos, conEndPos);
             // net refs invalidated in case of network combination
             resetToIdle();
             break;
