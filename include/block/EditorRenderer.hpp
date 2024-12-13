@@ -332,8 +332,8 @@ class EditorRenderer {
             if (debugNet && debugNet.value() == net.ind) // sneaky debug overlay... rest down
                 col = debugConColour;
             else if (editor.state == Editor::EditorState::Connecting &&
-                         (editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
-                     (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind)) {
+                     ((editor.conStartCloNet && editor.conStartCloNet.value() == net.ind) ||
+                      (editor.conEndCloNet && editor.conEndCloNet.value() == net.ind))) {
                 col = highlightConColour; // editor hover color
             }
 

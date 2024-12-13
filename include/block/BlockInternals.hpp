@@ -188,10 +188,16 @@ class ClosedNet {
         ClosedNet newNet{};
         stealConnetedCons(startPort, newNet);
         outputs.erase(std::remove_if(outputs.begin(), outputs.end(), [&](auto& output) {
-            return contains(output) && newNet.contains(output); // output has been copied
-        }));
-        if (input.has_value() && newNet.contains(input.value()))
+            if (newNet.contains(output)) { // output has been copied
+                newNet.outputs.push_back(output);
+                return true;
+            }
+            return false;
+        }), outputs.end());
+        if (input.has_value() && newNet.contains(input.value())) {
+            newNet.input = input;
             input.reset(); // input has been copied
+        }
         return newNet;
     }
     [[nodiscard]] bool contains(const PortRef& port) const {

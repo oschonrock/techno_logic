@@ -148,6 +148,7 @@ void Editor::event(const sf::Event& event) {
             if (!delLegal) break;
             if (typeOf(delObjVar) == ObjAtCoordType::Con) {
                 block.eraseCon(std::get<Connection>(delObjVar));
+                resetToIdle();
             } else {
                 throw std::runtime_error("ahhhh deleting for this type not implemented yet");
             }

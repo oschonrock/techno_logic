@@ -216,16 +216,21 @@ void Block::eraseCon(const Connection& con) {
         if (typeOf(con.portRef1) == PortObjType::Node) {
             auto node = std::get<Ref<Node>>(con.portRef1.ref);
             if (getNodeConCount(node) == 0) {
-                std::cout << "erase finisehed" << std::endl;
+                std::cout << "deleted node" << std::endl;
                 nodes.erase(node);
             }
         }
         if (typeOf(con.portRef2) == PortObjType::Node) {
             auto node = std::get<Ref<Node>>(con.portRef2.ref);
             if (getNodeConCount(node) == 0) {
+                std::cout << "deleted node" << std::endl;
                 nodes.erase(node);
             }
         }
         std::cout << "erase func finisehed" << std::endl;
+        std::cout << "net count: " << nets.size() << std::endl;
+        for (const auto& net: nets) {
+            std::cout << "net size: " << net.obj.getSize() << std::endl;
+        }
     }
 }
