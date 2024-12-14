@@ -99,7 +99,6 @@ void Block::splitCon(const Connection& oldCon, Ref<Node> nodeRef) {
 
 void Block::updateNode(Ref<Node> node) {
     if (getNodeConCount(node) == 0) {
-        std::cout << "deleted floating node" << std::endl;
         nodes.erase(node);
     } else if (getNodeConCount(node) == 2) {
         auto&                     net = nets[getClosNetRef(node).value()];
@@ -125,7 +124,6 @@ void Block::updateNode(Ref<Node> node) {
         nodes.erase(node);
         Connection newCon{con1->portRef2, con2.portRef2};
         net.insert(newCon, emptyPortType);
-        std::cout << "removed redundant node" << std::endl;
     }
 }
 
@@ -232,20 +230,13 @@ void Block::eraseCon(const Connection& con) {
     auto& net = nets[netRef.value()];
     net.erase(con, getPortType(con));
     if (!net.isConnected(con.portRef1, con.portRef2)) { // network split
-        std::cout << "nets split" << std::endl;
         auto newNet = net.splitNet(con.portRef1);
         if (newNet.getSize() != 0) { // add new net
-            std::cout << "new net added" << std::endl;
             nets.insert(newNet);
             net = nets[netRef.value()]; // net& invalidated by insert
         }
         if (net.getSize() == 0) { // delete old net
-            std::cout << "old net deleted" << std::endl;
             nets.erase(netRef.value());
-        }
-        std::cout << "net count: " << nets.size() << std::endl;
-        for (const auto& net: nets) {
-            std::cout << "net size: " << net.obj.getSize() << std::endl;
         }
     }
     // delete now disconnected nodes
@@ -257,5 +248,4 @@ void Block::eraseCon(const Connection& con) {
         auto node = std::get<Ref<Node>>(con.portRef2.ref);
         updateNode(node);
     }
-    std::cout << "erase func finisehed" << std::endl;
 }
