@@ -33,7 +33,9 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             ImGui::SFML::ProcessEvent(window, event);
-            if (ImGui::GetIO().WantCaptureMouse) break;
+            if (ImGui::GetIO().WantCaptureMouse && (event.type == sf::Event::MouseButtonPressed ||
+                                                    event.type == sf::Event::MouseButtonReleased))
+                break;
             if (rend.event(event, mousePixPos)) break;
             editor.event(event);
             if (event.type == sf::Event::Closed) {

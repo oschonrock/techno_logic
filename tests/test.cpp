@@ -155,6 +155,27 @@ TEST_F(BlockTest, eraseConSplitNet2) {
     EXPECT_EQ(net2.getSize(), 1);
 }
 
+TEST_F(BlockTest, eraseConSplitNet3) {
+    Connection con1 = addConnection({0, 0}, {4, 0});
+    Connection con2 = addConnection({0, 4}, {4, 4});
+    Connection con3 = addConnection({2, 0}, {2, 4});
+    // 1,2 and 3 make an I
+    Connection con4 = addConnection({0, 2}, {4, 2});
+    // con 4 makes puts a horizontal cut through the I
+    insertOverlap(con4, con3, {2, 2});
+    auto& net = nets.front().obj;
+    EXPECT_EQ(nets.size(), 1);
+    EXPECT_EQ(net.getSize(), 8);
+    EXPECT_TRUE(net.isConnected(con1.portRef1, con2.portRef2));
+    auto nodeCoord = whatIsAtCoord({2,2});
+    ASSERT_EQ(typeOf(nodeCoord), ObjAtCoordType::Node);
+    auto node = std::get<Ref<Node>>(nodeCoord);
+    eraseCon({con3.portRef1, {node, static_cast<std::size_t>(Direction::up)}});
+    auto newNetOpt = getClosNetRef(con1);
+    ASSERT_TRUE(newNetOpt.has_value());
+    // auto newNet = newNetOpt.value();
+}
+
 // StableVector
 template <typename T, typename Q>
 void equalityCheck(T subj, const std::vector<Q>& vec) { // subj is taken by value
