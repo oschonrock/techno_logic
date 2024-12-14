@@ -187,13 +187,15 @@ class ClosedNet {
     ClosedNet splitNet(const PortRef& startPort) {
         ClosedNet newNet{};
         stealConnetedCons(startPort, newNet);
-        outputs.erase(std::remove_if(outputs.begin(), outputs.end(), [&](auto& output) {
-            if (newNet.contains(output)) { // output has been copied
-                newNet.outputs.push_back(output);
-                return true;
-            }
-            return false;
-        }), outputs.end());
+        outputs.erase(std::remove_if(outputs.begin(), outputs.end(),
+                                     [&](auto& output) {
+                                         if (newNet.contains(output)) { // output has been copied
+                                             newNet.outputs.push_back(output);
+                                             return true;
+                                         }
+                                         return false;
+                                     }),
+                      outputs.end());
         if (input.has_value() && newNet.contains(input.value())) {
             newNet.input = input;
             input.reset(); // input has been copied
@@ -245,22 +247,31 @@ class ClosedNet {
 
         using MapIt = absl::flat_hash_map<PortRef, PortRef>::const_iterator;
         Iterator()  = delete;
-        Iterator(MapIt it, MapIt end) : it_(it), end_(end), con(it_->first, it_->second) {}
-        Iterator(MapIt it, Connection placeholderCon) : it_(it), con(placeholderCon) {}
+        Iterator(MapIt it, MapIt end) : it_(it), end_(end) {
+            if (it_ != end_) con = Connection(it_->first, it_->second);
+        }
 
-        [[nodiscard]] reference operator*() const { return con; }
-        [[nodiscard]] pointer   operator->() const { return &con; }
+        [[nodiscard]] reference operator*() const {
+            if (it_ == end_) throw std::out_of_range("Tried to derefence end");
+            return con.value();
+        }
+        [[nodiscard]] pointer operator->() const {
+            if (it_ == end_) throw std::out_of_range("Tried to derefence end");
+            return &con.value();
+        }
 
         Iterator& operator++() { // Prefix increment
             ++it_;
-            if (it_ != end_) con = Connection(it_->first, it_->second);
+            if (it_ != end_)
+                con = Connection(it_->first, it_->second);
+            else
+                con = {};
             return *this;
         }
 
         Iterator operator++(int) { // Postfix increment
             Iterator tmp = *this;
-            ++it_;
-            if (it_ != end_) con = Connection(it_->first, it_->second);
+            ++*this;
             return tmp;
         }
 
@@ -268,15 +279,12 @@ class ClosedNet {
         friend bool operator!=(const Iterator& a, const Iterator& b) { return a.it_ != b.it_; }
 
       private:
-        MapIt      it_;
-        MapIt      end_; // required to avoid dereference of end()
-        Connection con;
+        MapIt                     it_;
+        MapIt                     end_; // required to avoid dereference of end()
+        std::optional<Connection> con;
     };
-    static_assert(std::input_iterator<Iterator>);
 
+    static_assert(std::input_iterator<Iterator>);
     [[nodiscard]] Iterator begin() const { return Iterator(conMap.begin(), conMap.end()); }
-    [[nodiscard]] Iterator end() const {
-        // passes placeholder connection to prevent *end() exploding
-        return Iterator(conMap.end(), Connection(*begin()));
-    }
+    [[nodiscard]] Iterator end() const { return Iterator(conMap.end(), conMap.end()); }
 };

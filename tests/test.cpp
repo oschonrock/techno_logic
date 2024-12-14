@@ -69,6 +69,16 @@ TEST_F(BlockTest, makeNewPortAtNode) {
     EXPECT_TRUE(net.obj.isConnected(endPort, endPort2));
 }
 
+TEST_F(BlockTest, removeRedundantNode) {
+    auto con1 = addConnection({0, 0}, {0, 1});
+    auto con2 = addConnection({0, 2}, {0, 3});
+    auto con3 = addConnection({0, 1}, {0, 2});
+    EXPECT_EQ(nodes.size(), 2);
+    auto net = nets[getClosNetRef(con1.portRef1).value()];
+    EXPECT_TRUE(net.isConnected(con1.portRef1, con2.portRef2));
+    EXPECT_EQ(net.getSize(), 1);
+}
+
 TEST_F(BlockTest, splitConnection1) {
     Connection con1         = addConnection({0, 0}, {5, 0});
     PortRef    splitConPort = makeNewPortRef({2, 0}, Direction::down);
@@ -167,12 +177,14 @@ TEST_F(BlockTest, eraseConSplitNet3) {
     EXPECT_EQ(nets.size(), 1);
     EXPECT_EQ(net.getSize(), 8);
     EXPECT_TRUE(net.isConnected(con1.portRef1, con2.portRef2));
-    auto nodeCoord = whatIsAtCoord({2,2});
+    auto nodeCoord = whatIsAtCoord({2, 2});
     ASSERT_EQ(typeOf(nodeCoord), ObjAtCoordType::Node);
     auto node = std::get<Ref<Node>>(nodeCoord);
     eraseCon({con3.portRef1, {node, static_cast<std::size_t>(Direction::up)}});
+    EXPECT_EQ(nets.size(), 2);
     auto newNetOpt = getClosNetRef(con1);
     ASSERT_TRUE(newNetOpt.has_value());
+    EXPECT_TRUE(nets[newNetOpt.value()].contains(con1));
     // auto newNet = newNetOpt.value();
 }
 

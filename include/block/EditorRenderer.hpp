@@ -220,6 +220,7 @@ class EditorRenderer {
             ImGui::TreePop();
         }
         if (ImGui::TreeNodeEx("Networks", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Node count: %zu", block.nodes.size());
             static ImGuiTableFlags flags =
                 ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                 ImGuiTableFlags_SizingStretchSame |

@@ -36,7 +36,7 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
             auto  redundantCon = net.getCon(redundantPort);
             net.erase(redundantCon, getPortType(redundantCon));
             nodes.erase(node);
-            var = {}; // prevents deleted node ref being used
+            if (net.getSize() == 0) nets.erase(redundantPortNet.value());
             return redundantCon.portRef2;
         }
         return newPort;
