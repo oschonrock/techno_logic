@@ -35,6 +35,7 @@ class Block {
     [[nodiscard]] PortRef makeNewPortRef(const sf::Vector2i& pos, Direction portDir);
     void                  insertCon(const Connection& con);
     void                  splitCon(const Connection& con, Ref<Node> node);
+    void                  updateNode(Ref<Node> node);
 
   public:
     Block(std::string name_, std::size_t size_) : name(name_), size(size_) {}

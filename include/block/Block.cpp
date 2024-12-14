@@ -97,6 +97,38 @@ void Block::splitCon(const Connection& oldCon, Ref<Node> nodeRef) {
     net.insert(con, getPortType(con));
 }
 
+void Block::updateNode(Ref<Node> node) {
+    if (getNodeConCount(node) == 0) {
+        std::cout << "deleted floating node" << std::endl;
+        nodes.erase(node);
+    } else if (getNodeConCount(node) == 2) {
+        auto&                     net = nets[getClosNetRef(node).value()];
+        std::optional<Connection> con1;
+        PortRef                   upPort{node, static_cast<std::size_t>(Direction::up)};
+        PortRef                   leftPort{node, static_cast<std::size_t>(Direction::left)};
+        Direction                 oppDir;
+        if (net.contains(upPort)) {
+            con1   = net.getCon(upPort);
+            oppDir = Direction::down;
+        } else if (net.contains(leftPort)) {
+            con1   = net.getCon(leftPort);
+            oppDir = Direction::right;
+        }
+        if (!con1) return;
+        PortRef oppPort{node, static_cast<std::size_t>(oppDir)};
+        if (!net.contains(oppPort)) return;
+        Connection con2 = net.getCon(oppPort);
+        // port types don't matter cause gonna readd anyway
+        auto emptyPortType = std::make_pair(PortType::node, PortType::node);
+        net.erase(con1.value(), emptyPortType);
+        net.erase(con2, emptyPortType);
+        nodes.erase(node);
+        Connection newCon{con1->portRef2, con2.portRef2};
+        net.insert(newCon, emptyPortType);
+        std::cout << "removed redundant node" << std::endl;
+    }
+}
+
 // PortInst& Block::getPort(const PortRef& port) {
 //     switch (typeOf(port.ref)) {
 //     case PortObjType::Node:
@@ -211,26 +243,19 @@ void Block::eraseCon(const Connection& con) {
             std::cout << "old net deleted" << std::endl;
             nets.erase(netRef.value());
         }
-        std::cout << "erase finisehed" << std::endl;
-        // delete now disconnected nodes
-        if (typeOf(con.portRef1) == PortObjType::Node) {
-            auto node = std::get<Ref<Node>>(con.portRef1.ref);
-            if (getNodeConCount(node) == 0) {
-                std::cout << "deleted node" << std::endl;
-                nodes.erase(node);
-            }
-        }
-        if (typeOf(con.portRef2) == PortObjType::Node) {
-            auto node = std::get<Ref<Node>>(con.portRef2.ref);
-            if (getNodeConCount(node) == 0) {
-                std::cout << "deleted node" << std::endl;
-                nodes.erase(node);
-            }
-        }
-        std::cout << "erase func finisehed" << std::endl;
         std::cout << "net count: " << nets.size() << std::endl;
         for (const auto& net: nets) {
             std::cout << "net size: " << net.obj.getSize() << std::endl;
         }
     }
+    // delete now disconnected nodes
+    if (typeOf(con.portRef1) == PortObjType::Node) {
+        auto node = std::get<Ref<Node>>(con.portRef1.ref);
+        updateNode(node);
+    }
+    if (typeOf(con.portRef2) == PortObjType::Node) {
+        auto node = std::get<Ref<Node>>(con.portRef2.ref);
+        updateNode(node);
+    }
+    std::cout << "erase func finisehed" << std::endl;
 }
