@@ -72,7 +72,7 @@ TEST_F(BlockTest, makeNewPortAtNode) {
 TEST_F(BlockTest, removeRedundantNode) {
     auto con1 = addConnection({0, 0}, {0, 1});
     auto con2 = addConnection({0, 2}, {0, 3});
-    auto con3 = addConnection({0, 1}, {0, 2});
+    addConnection({0, 1}, {0, 2});
     EXPECT_EQ(nodes.size(), 2);
     auto net = nets[getClosNetRef(con1.portRef1).value()];
     EXPECT_TRUE(net.isConnected(con1.portRef1, con2.portRef2));
