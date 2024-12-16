@@ -335,7 +335,7 @@ class CompactMap {
 };
 
 template <typename T, typename RefTag = DefRefTag>
-using StableVector = PepperedVector<T, RefTag>;
+using StableVector = CompactMap<T, RefTag>;
 
 template <typename T, typename RefTag>
 struct std::hash<Ref<T, RefTag>> {

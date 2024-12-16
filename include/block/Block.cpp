@@ -36,7 +36,7 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
             auto  redundantCon = net.getCon(redundantPort);
             net.erase(redundantCon, getPortType(redundantCon));
             nodes.erase(node);
-            var = {}; // prevents deleted node ref being used
+            if (net.getSize() == 0) nets.erase(redundantPortNet.value());
             return redundantCon.portRef2;
         }
         return newPort;
@@ -231,12 +231,11 @@ void Block::eraseCon(const Connection& con) {
     net.erase(con, getPortType(con));
     if (!net.isConnected(con.portRef1, con.portRef2)) { // network split
         auto newNet = net.splitNet(con.portRef1);
-        if (newNet.getSize() != 0) { // add new net
-            nets.insert(newNet);
-            net = nets[netRef.value()]; // net& invalidated by insert
-        }
-        if (net.getSize() == 0) { // delete old net
+        if (net.getSize() == 0) { // delete old net if empty
             nets.erase(netRef.value());
+        }
+        if (newNet.getSize() != 0) { // add new net if not empty
+            nets.insert(newNet);
         }
     }
     // delete now disconnected nodes
