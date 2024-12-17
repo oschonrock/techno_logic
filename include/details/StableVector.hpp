@@ -311,8 +311,8 @@ class CompactMap {
         vec.erase(++back, vec.end());
     }
 
-    [[nodiscard]] Elem&        front() const { return vec.front(); }
-    [[nodiscard]] Elem&        back() const { return vec.back(); }
+    [[nodiscard]] Elem&        front() { return vec.front(); }
+    [[nodiscard]] Elem&        back() { return vec.back(); }
     [[nodiscard]] bool&        contains(const Ref_& ind) const { return map.contains(ind.id); }
     [[nodiscard]] std::size_t size() const { return vec.size(); }
     [[nodiscard]] bool        empty() const { return vec.empty(); }
