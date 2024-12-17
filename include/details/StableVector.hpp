@@ -57,7 +57,7 @@ class PepperedVector {
     using Ref_ = Ref<T, RefTag>;
     struct Elem {
         Ref_ ind;
-        T   obj;
+        T    obj;
     };
     struct ElemExists {
         bool isDeleted;
@@ -265,11 +265,11 @@ class CompactMap {
     using Ref_ = Ref<T, RefTag>;
     struct Elem {
         Ref_ ind;
-        T   obj;
+        T    obj;
     };
     std::vector<Elem>                             vec{};
     absl::flat_hash_map<std::size_t, std::size_t> map{};
-    Ref_                                           nextInd{};
+    Ref_                                          nextInd{};
 
   public:
     // if you do not store the return value you will only be able to
@@ -311,9 +311,9 @@ class CompactMap {
         vec.erase(++back, vec.end());
     }
 
-    [[nodiscard]] Elem&        front() { return vec.front(); }
-    [[nodiscard]] Elem&        back() { return vec.back(); }
-    [[nodiscard]] bool&        contains(const Ref_& ind) const { return map.contains(ind.id); }
+    [[nodiscard]] Elem&       front() { return vec.front(); }
+    [[nodiscard]] Elem&       back() { return vec.back(); }
+    [[nodiscard]] bool&       contains(const Ref_& ind) const { return map.contains(ind.id); }
     [[nodiscard]] std::size_t size() const { return vec.size(); }
     [[nodiscard]] bool        empty() const { return vec.empty(); }
     void                      reserve(std::size_t n) { vec.reserve(n); }
