@@ -28,7 +28,8 @@ int main() {
     sf::Clock deltaClock;
     while (window.isOpen()) {
         sf::Vector2i mousePixPos = sf::Mouse::getPosition(window);
-        sf::Vector2i mousePos    = editor.snapToGrid(window.mapPixelToCoords(mousePixPos));
+        sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixPos);
+        sf::Vector2i mousePos    = editor.snapToGrid(mouseWorldPos);
 
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -46,7 +47,7 @@ int main() {
         ImGui::SFML::Update(window, deltaClock.restart());
 
         window.clear();
-        editor.frame(mousePos); // update state
+        editor.frame(mouseWorldPos); // update state
         rend.frame(mousePixPos);
         ImGui::SFML::Render(window);
         window.display();

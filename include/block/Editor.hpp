@@ -26,8 +26,8 @@ class Editor {
 
     sf::Vector2i                  conStartPos;
     sf::Vector2i                  conEndPos;
-    ObjAtCoordVar                 conStartObjVar;
-    ObjAtCoordVar                 conEndObjVar;
+    ObjAtCoord                    conStartObjVar;
+    ObjAtCoord                    conEndObjVar;
     std::optional<Ref<ClosedNet>> conStartCloNet;
     std::optional<Ref<ClosedNet>> conEndCloNet;
     bool                          conStartLegal;
@@ -35,11 +35,10 @@ class Editor {
 
     std::vector<sf::Vector2i> overlapPos;
 
-    sf::Vector2i  delPos;
-    ObjAtCoordVar delObjVar;
-    bool          delLegal;
+    ObjAtCoord delObjVar;
+    bool       delLegal;
 
     sf::Vector2i snapToGrid(const sf::Vector2f& pos) const; // should be in block
     void         event(const sf::Event& event);
-    void         frame(const sf::Vector2i& mousePos);
+    void         frame(const sf::Vector2f& mouseWorldPos);
 };

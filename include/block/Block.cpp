@@ -9,7 +9,7 @@ bool Block::collisionCheck(const Connection& con, const sf::Vector2i& coord) con
 // If there isn't one creates one according to what's currently there;
 // should only really be used when making a new connection
 [[nodiscard]] PortRef Block::makeNewPortRef(const sf::Vector2i& pos, Direction portDir) {
-    ObjAtCoordVar var = whatIsAtCoord(pos);
+    ObjAtCoord var = whatIsAtCoord(pos);
     switch (typeOf(var)) {
     case ObjAtCoordType::Empty: { // make new node
         Ref<Node> node = nodes.insert(Node{pos});
@@ -167,7 +167,7 @@ std::pair<PortType, PortType> Block::getPortType(const Connection& con) const {
     return std::make_pair(getPortType(con.portRef1), getPortType(con.portRef1));
 }
 
-ObjAtCoordVar Block::whatIsAtCoord(const sf::Vector2i& coord) const {
+ObjAtCoord Block::whatIsAtCoord(const sf::Vector2i& coord) const {
     // check for nodes
     for (const auto& node: nodes) {
         if (coord == node.obj.pos) return node.ind;

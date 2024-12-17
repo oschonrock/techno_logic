@@ -138,7 +138,7 @@ void Editor::event(const sf::Event& event) {
                 state = EditorState::Idle;
                 break;
             }
-            
+
             block.addConnection(conStartPos, conEndPos);
             // net refs invalidated in case of network combination
             resetToIdle();
@@ -170,7 +170,8 @@ void Editor::event(const sf::Event& event) {
 
 // Called every frame
 // Responsible for ensuring correct state of "con" variables according to block state and inputs
-void Editor::frame(const sf::Vector2i& mousePos) {
+void Editor::frame(const sf::Vector2f& mouseWorldPos) {
+    auto mousePos = snapToGrid(mouseWorldPos);
     overlapPos.clear();
     conEndCloNet.reset();
     switch (state) {
@@ -271,9 +272,19 @@ void Editor::frame(const sf::Vector2i& mousePos) {
     }
     case EditorState::Deleting: {
         ImGui::SetTooltip("Deleting");
-        delPos    = mousePos;
-        delObjVar = block.whatIsAtCoord(delPos);
-        delLegal  = false;
+        delObjVar             = block.whatIsAtCoord(mousePos);
+        auto worldGridPosDiff = mouseWorldPos - sf::Vector2f(mousePos);
+        if (typeOf(delObjVar) == ObjAtCoordType::Node &&
+            mag(worldGridPosDiff) > 0.25f) { // del con over node if far away
+            auto node = std::get<Ref<Node>>(delObjVar);
+            auto dir  = vecToDir(snapToAxis(worldGridPosDiff));
+            auto port = PortRef{node, static_cast<std::size_t>(dir)};
+            auto con  = block.getClosNetRef(port);
+            if (con) { // if connection to snap to
+                delObjVar = block.nets[con.value()].getCon(port);
+            }
+        }
+        delLegal = false;
         switch (typeOf(delObjVar)) {
         case ObjAtCoordType::Empty:
             break;

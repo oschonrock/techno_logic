@@ -1,6 +1,6 @@
 #include "BlockInternals.hpp"
 
-using ObjAtCoordVar = std::variant<std::monostate, Connection, std::pair<Connection, Connection>,
+using ObjAtCoord = std::variant<std::monostate, Connection, std::pair<Connection, Connection>,
                                    PortRef, Ref<Node>, Ref<Gate>, Ref<BlockInst>>;
 enum struct ObjAtCoordType : std::size_t {
     Empty    = 0,
@@ -14,9 +14,9 @@ enum struct ObjAtCoordType : std::size_t {
 inline static constexpr std::array<std::string, 7> ObjAtCoordStrings{
     "empty", "connection", "conn crossing", "port", "node", "gate", "block"}; // for debugging
 
-inline ObjAtCoordType typeOf(const ObjAtCoordVar& ref) { return ObjAtCoordType{ref.index()}; }
+inline ObjAtCoordType typeOf(const ObjAtCoord& ref) { return ObjAtCoordType{ref.index()}; }
 
-inline bool isCoordConType(const ObjAtCoordVar& ref) {
+inline bool isCoordConType(const ObjAtCoord& ref) {
     switch (ObjAtCoordType(ref.index())) {
     case ObjAtCoordType::Empty:
     case ObjAtCoordType::Con:
@@ -54,7 +54,7 @@ class Block {
     const PortInst&               getPort(const PortRef& port) const;
     PortType                      getPortType(const PortRef& port) const;
     std::pair<PortType, PortType> getPortType(const Connection& con) const;
-    [[nodiscard]] ObjAtCoordVar   whatIsAtCoord(const sf::Vector2i& coord) const;
+    [[nodiscard]] ObjAtCoord   whatIsAtCoord(const sf::Vector2i& coord) const;
 
     template <typename T>
     [[nodiscard]] std::optional<Ref<ClosedNet>> getClosNetRef(const T& obj) const {

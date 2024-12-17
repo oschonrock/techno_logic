@@ -1,12 +1,13 @@
 #pragma once
 
 #include <SFML/System/Vector2.hpp>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
-#include <array>
+
 
 enum struct Direction : std::size_t { up = 0, down = 1, left = 2, right = 3 };
 static constexpr std::array<std::string, 4> DirectionStrings{"up", "down", "left", "right"};
@@ -27,10 +28,19 @@ inline sf::Vector2i dirToVec(Direction dir) {
 
 // note 0,0 = false
 inline bool isVecHoriVert(const sf::Vector2i& vec) { return ((vec.x != 0) != (vec.y != 0)); }
+inline bool isVecHoriVert(const sf::Vector2f& vec) { return ((vec.x != 0) != (vec.y != 0)); }
 
 inline int magPolar(const sf::Vector2i& vec) { return abs(vec.x) + abs(vec.y); }
 
 inline Direction vecToDir(const sf::Vector2i& vec) {
+    assert(isVecHoriVert(vec));
+    if (vec.y != 0) {
+        return vec.y < 0 ? Direction::up : Direction::down;
+    }
+    return vec.x < 0 ? Direction::left : Direction::right;
+}
+
+inline Direction vecToDir(const sf::Vector2f& vec) {
     assert(isVecHoriVert(vec));
     if (vec.y != 0) {
         return vec.y < 0 ? Direction::up : Direction::down;
@@ -90,6 +100,14 @@ getLineIntersection(const std::pair<sf::Vector2i, sf::Vector2i>& line1,
 }
 
 inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
+    if (abs(vec.x) > abs(vec.y)) {
+        return {vec.x, 0};
+    } else {
+        return {0, vec.y};
+    }
+}
+
+inline sf::Vector2f snapToAxis(const sf::Vector2f& vec) {
     if (abs(vec.x) > abs(vec.y)) {
         return {vec.x, 0};
     } else {
