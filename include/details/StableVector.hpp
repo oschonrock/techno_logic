@@ -54,9 +54,9 @@ struct Ref {
 template <typename T, typename RefTag = DefRefTag>
 class PepperedVector {
   private:
-    using Ref = Ref<T, RefTag>;
+    using Ref_ = Ref<T, RefTag>;
     struct Elem {
-        Ref ind;
+        Ref_ ind;
         T   obj;
     };
     struct ElemExists {
@@ -70,26 +70,26 @@ class PepperedVector {
     // store the return value or you will only be able to retrieve/delete this
     // element through iteration
     template <typename E>
-    Ref insert(E&& elem) { // forwarded
-        Ref ind;
+    Ref_ insert(E&& elem) { // forwarded
+        Ref_ ind;
         if (!queue.empty()) { // if hole can be filled
-            ind = Ref(queue.top());
+            ind = Ref_(queue.top());
             queue.pop();
             vec[ind.id] = ElemExists{false, Elem{ind, std::forward<E>(elem)}};
         } else { // back
-            ind = Ref(vec.size());
+            ind = Ref_(vec.size());
             vec.emplace_back(false, Elem{ind, std::forward<E>(elem)});
         }
         return ind;
     }
     // deletion does not change underyling array so can delete while iterating
-    void erase(const Ref& ind) {
+    void erase(const Ref_& ind) {
         vec.at(ind.id).isDeleted = true;
         queue.push(ind.id);
     }
 
     template <std::ranges::forward_range R>
-        requires std::is_same_v<std::ranges::range_value_t<R>, Ref>
+        requires std::is_same_v<std::ranges::range_value_t<R>, Ref_>
     void erase(R&& range) { // std::priority_queue::push_range doesn't exist yet
                             // :( std::ranges::for_each(range, &this->rem);
         for (auto r: range) {
@@ -101,7 +101,7 @@ class PepperedVector {
     [[nodiscard]] Elem& back() { return *(--end()); }
 
     // checks if index still references a valid element
-    [[nodiscard]] bool contains(const Ref& ind) const {
+    [[nodiscard]] bool contains(const Ref_& ind) const {
         if (ind.id < 0 || ind.id >= vec.size()) return false;
         return !vec[ind.id].isDeleted;
     }
@@ -114,8 +114,8 @@ class PepperedVector {
         queue = decltype(queue)();
     }
 
-    [[nodiscard]] T&       operator[](const Ref& ind) { return vec[ind.id].elem.obj; }
-    [[nodiscard]] const T& operator[](const Ref& ind) const { return vec[ind.id].elem.obj; }
+    [[nodiscard]] T&       operator[](const Ref_& ind) { return vec[ind.id].elem.obj; }
+    [[nodiscard]] const T& operator[](const Ref_& ind) const { return vec[ind.id].elem.obj; }
 
   private:
     struct Iterator {
@@ -262,29 +262,29 @@ class PepperedVector {
 template <typename T, typename RefTag = DefRefTag>
 class CompactMap {
   private:
-    using Ref = Ref<T, RefTag>;
+    using Ref_ = Ref<T, RefTag>;
     struct Elem {
-        Ref ind;
+        Ref_ ind;
         T   obj;
     };
     std::vector<Elem>                             vec{};
     absl::flat_hash_map<std::size_t, std::size_t> map{};
-    Ref                                           nextInd{};
+    Ref_                                           nextInd{};
 
   public:
     // if you do not store the return value you will only be able to
     // retrive/delete this element through iteration
     template <typename E>
-    Ref insert(E&& elem) { // forwarded
+    Ref_ insert(E&& elem) { // forwarded
         map[nextInd.id] = vec.size();
-        Ref ind{nextInd};
+        Ref_ ind{nextInd};
         vec.emplace_back(ind, std::forward<E>(elem));
         ++nextInd;
         return ind;
     }
     // deletion changes underyling array and therefore invalidates
     // iterators/pointers
-    void erase(const Ref& ind) {
+    void erase(const Ref_& ind) {
         auto delIndex = map.at(ind.id);
 
         map[vec.back().ind.id] = delIndex;
@@ -297,7 +297,7 @@ class CompactMap {
     // deletion changes underyling array and therefore invalidates
     // iterators-pointers
     template <std::ranges::forward_range R>
-        requires std::is_same_v<std::ranges::range_value_t<R>, Ref>
+        requires std::is_same_v<std::ranges::range_value_t<R>, Ref_>
     void erase(R&& range) {
         auto back = --vec.end();
         // TODO figure out for each here cause idk ^^ that breaks it
@@ -311,9 +311,9 @@ class CompactMap {
         vec.erase(++back, vec.end());
     }
 
-    [[nodiscard]] Elem&       front() { return vec.front(); }
-    [[nodiscard]] Elem&       back() { return vec.back(); }
-    [[nodiscard]] bool        contains(const Ref& ind) const { return map.contains(ind.id); }
+    [[nodiscard]] Elem&        front() const { return vec.front(); }
+    [[nodiscard]] Elem&        back() const { return vec.back(); }
+    [[nodiscard]] bool&        contains(const Ref_& ind) const { return map.contains(ind.id); }
     [[nodiscard]] std::size_t size() const { return vec.size(); }
     [[nodiscard]] bool        empty() const { return vec.empty(); }
     void                      reserve(std::size_t n) { vec.reserve(n); }
@@ -323,8 +323,8 @@ class CompactMap {
         nextInd = {};
     }
     // TODO make map.at debug only
-    [[nodiscard]] T&       operator[](const Ref& ind) { return vec[map.at(ind.id)].obj; }
-    [[nodiscard]] const T& operator[](const Ref& ind) const { return vec[map.at(ind.id)].obj; }
+    [[nodiscard]] T&       operator[](const Ref_& ind) { return vec[map.at(ind.id)].obj; }
+    [[nodiscard]] const T& operator[](const Ref_& ind) const { return vec[map.at(ind.id)].obj; }
 
     [[nodiscard]] auto begin() { return vec.begin(); }
     [[nodiscard]] auto end() { return vec.end(); }
