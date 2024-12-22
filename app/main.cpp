@@ -39,8 +39,8 @@ int main() {
         }
 
         // fix windows imgui no response bug
-        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::LostFocus));
-        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::GainedFocus));
+        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::LostFocus, {}));
+        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::GainedFocus, {}));
 
         Block block{"Example", 200};
         block.description = "This is an example block :)";
@@ -52,7 +52,7 @@ int main() {
 
             sf::Vector2i mousePixPos   = sf::Mouse::getPosition(window);
             sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixPos);
-            sf::Vector2i mousePos      = editor.snapToGrid(mouseWorldPos);
+            // sf::Vector2i mousePos      = editor.snapToGrid(mouseWorldPos);
 
             sf::Event event;
             while (window.pollEvent(event)) {
