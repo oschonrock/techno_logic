@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Techno Logic
+GenericName=Digital Circuit Simulator
+Comment=Design and simmulate arbitrarily large digital circutis
+Path=/home/oliver/techno_logic/
+Exec=./build/gcc/Debug/techno_logic
+Terminal=false
+Type=Application
+Icon=/home/oliver/techno_logic/resources/techno_logic_icon.png
+
