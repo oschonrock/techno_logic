@@ -55,7 +55,7 @@ include(FetchContent)
 
 fetchcontent_declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.x
+    GIT_TAG 3.0.0
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
     SYSTEM)
@@ -63,7 +63,7 @@ fetchcontent_makeavailable(SFML)
 
 fetchcontent_declare(ImGui
     GIT_REPOSITORY https://github.com/ocornut/imgui
-    GIT_TAG v1.89.9
+    GIT_TAG v1.91.1
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
     SYSTEM)
@@ -73,7 +73,7 @@ fetchcontent_getproperties(ImGui SOURCE_DIR IMGUI_DIR)
 set(IMGUI_SFML_FIND_SFML OFF)
 fetchcontent_declare(ImGui-SFML
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml
-    GIT_TAG 2.6.x
+    GIT_BRANCH master
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
     SYSTEM)
@@ -90,7 +90,7 @@ fetchcontent_makeavailable(abseil-cpp)
 
 add_library(techno_logic_internal include/block/Editor.cpp include/block/Block.cpp)
 target_include_directories(techno_logic_internal PUBLIC ./include)
-target_link_libraries(techno_logic_internal PUBLIC sfml-graphics ImGui-SFML::ImGui-SFML absl::flat_hash_map ${PROJECT_STATIC_OPTIONS})
+target_link_libraries(techno_logic_internal PUBLIC SFML::Graphics ImGui-SFML::ImGui-SFML absl::flat_hash_map ${PROJECT_STATIC_OPTIONS})
 
 add_executable(techno_logic app/main.cpp)
 target_link_libraries(techno_logic techno_logic_internal)

@@ -1,3 +1,5 @@
+#include <SFML/Graphics/Font.hpp>
+#include <SFML/Graphics/Image.hpp>
 #include <cmath>
 #include <cstdlib>
 #include <imgui.h>
@@ -12,19 +14,13 @@
 
 int main() {
     try {
-        sf::Font font;
-        if (!font.loadFromFile("resources/arial.ttf")) {
-            throw std::runtime_error("failed to load arial.ttf");
-        }
+        sf::Font font("resources/arial.ttf");
 
         sf::RenderWindow window(sf::VideoMode({1440, 1080}), "Techno Logic");
-        auto             app_icon = sf::Image{};
-        if (!app_icon.loadFromFile("resources/techno_logic_icon.png")) {
-            throw std::runtime_error("failed to load application icon");
-        }
+        sf::Image        app_icon("resources/techno_logic_icon.png");
 
         // set app icon: works in windows, linux needs a .desktop file for such integration
-        window.setIcon(app_icon.getSize().x, app_icon.getSize().y, app_icon.getPixelsPtr());
+        window.setIcon(app_icon.getSize(), app_icon.getPixelsPtr());
 
         window.setFramerateLimit(160);
         if (!ImGui::SFML::Init(window, false)) { // don't load default font
@@ -39,8 +35,8 @@ int main() {
         }
 
         // fix windows imgui no response bug
-        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::LostFocus, {}));
-        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::GainedFocus, {}));
+        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::FocusLost{}));
+        ImGui::SFML::ProcessEvent(window, sf::Event(sf::Event::FocusGained{}));
 
         Block block{"Example", 200};
         block.description = "This is an example block :)";
@@ -54,16 +50,15 @@ int main() {
             sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixPos);
             // sf::Vector2i mousePos      = editor.snapToGrid(mouseWorldPos);
 
-            sf::Event event;
-            while (window.pollEvent(event)) {
-                ImGui::SFML::ProcessEvent(window, event);
-                if (ImGui::GetIO().WantCaptureMouse &&
-                    (event.type == sf::Event::MouseButtonPressed ||
-                     event.type == sf::Event::MouseButtonReleased))
+            while (auto maybe_event = window.pollEvent()) {
+                auto& e = *maybe_event;
+                ImGui::SFML::ProcessEvent(window, e);
+                if (ImGui::GetIO().WantCaptureMouse && (e.is<sf::Event::MouseButtonPressed>() ||
+                                                        e.is<sf::Event::MouseButtonReleased>()))
                     break;
-                if (rend.event(event, mousePixPos)) break;
-                editor.event(event);
-                if (event.type == sf::Event::Closed) {
+                if (rend.event(e, mousePixPos)) break;
+                editor.event(e);
+                if (e.is<sf::Event::Closed>()) {
                     window.close();
                 }
             }
