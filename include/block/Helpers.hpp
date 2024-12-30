@@ -108,7 +108,7 @@ inline sf::Vector2i snapToAxis(const sf::Vector2i& vec) {
 }
 
 inline sf::Vector2f snapToAxis(const sf::Vector2f& vec) {
-    if (abs(vec.x) > abs(vec.y)) {
+    if (std::abs(vec.x) > std::abs(vec.y)) {
         return {vec.x, 0};
     } else {
         return {0, vec.y};

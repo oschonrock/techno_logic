@@ -6,6 +6,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Text.hpp>
 #include <imgui.h>
+#include <stdexcept>
 
 #include "Editor.hpp"
 
@@ -203,12 +204,13 @@ class EditorRenderer {
         if (ImGui::TreeNode("Current Connection")) {
             std::string startHover = ObjAtCoordStrings[editor.conStartObjVar.index()];
             switch (editor.state) {
-            case Editor::EditorState::Idle:
+            case Editor::EditorState::Idle: {
                 ImGui::Text("Hovering %s at pos (%d, %d)", startHover.c_str(), editor.conStartPos.x,
                             editor.conStartPos.y);
                 ImGui::Text("Proposed start point is %slegal", editor.conStartLegal ? "" : "il");
                 break;
-            case Editor::EditorState::Connecting:
+            }
+            case Editor::EditorState::Connecting: {
                 std::string endHover = ObjAtCoordStrings[editor.conEndObjVar.index()];
                 ImGui::Text("Start connected to %s at pos (%d, %d)", startHover.c_str(),
                             editor.conStartPos.x, editor.conStartPos.y);
@@ -216,6 +218,11 @@ class EditorRenderer {
                             editor.conEndPos.y);
                 ImGui::Text("Proposed end point is %slegal", editor.conEndLegal ? "" : "il");
                 break;
+            }
+            case Editor::EditorState::Deleting: {
+                throw std::runtime_error("unhandled deleting editor state");
+                break;
+            }
             }
             ImGui::TreePop();
         }
