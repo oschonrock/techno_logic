@@ -1,3 +1,5 @@
+#include <SFML/Window/Keyboard.hpp>
+#include <SFML/Window/Mouse.hpp>
 #include <imgui.h>
 
 #include "Editor.hpp"
@@ -107,65 +109,76 @@ sf::Vector2i Editor::snapToGrid(const sf::Vector2f& pos) const {
             std::clamp(static_cast<int>(std::round(pos.y)), 0, static_cast<int>(block.size - 1))};
 }
 
+template <typename... Ts>
+struct overload : Ts... {
+    using Ts::operator()...;
+};
+
 // Called every event
 // Primarily responsible for excectution of actions
 // E.g. create destroy objects
 void Editor::event(const sf::Event& event) {
-    if (event.type == sf::Event::MouseButtonPressed &&
-        event.mouseButton.button == sf::Mouse::Right) // reset
-        resetToIdle();
-    else if (event.type == sf::Event::MouseButtonReleased &&
-             event.mouseButton.button == sf::Mouse::Left) {
-        switch (state) {
-        case EditorState::Idle: { // new connection started
-            if (!conStartLegal) break;
-            if (isCoordConType(conStartObjVar)) { // connectable
-                state = EditorState::Connecting;
-                // reset end... it will contain old data
-                conEndPos    = conStartPos;
-                conEndObjVar = conStartObjVar;
-            } else if (typeOf(conStartObjVar) == ObjAtCoordType::ConCross) { // cross
-                auto conPair = std::get<std::pair<Connection, Connection>>(conStartObjVar);
-                block.insertOverlap(conPair.first, conPair.second, conStartPos);
-            } else { // clickedObj was a gate or block
-                // TODO
-            }
-            break;
-        }
-        case EditorState::Connecting: { // connection finished
-            if (!conEndLegal) break;
-            if (conEndPos == conStartPos) { // no move click is reset
-                state = EditorState::Idle;
-                break;
-            }
-
-            block.addConnection(conStartPos, conEndPos);
-            // net refs invalidated in case of network combination
-            resetToIdle();
-            break;
-        }
-        case EditorState::Deleting: {
-            if (!delLegal) break;
-            if (typeOf(delObjVar) == ObjAtCoordType::Con) {
-                block.eraseCon(std::get<Connection>(delObjVar));
+    event.visit(overload{
+        [&](const sf::Event::MouseButtonPressed& e) {
+            if (e.button == sf::Mouse::Button::Right) { // reset
                 resetToIdle();
-            } else {
-                throw std::runtime_error("ahhhh deleting for this type not implemented yet");
             }
-        }
-        }
-    }
-    if (event.type == sf::Event::KeyPressed ||
-        event.type == sf::Event::KeyReleased) { // all keyboard events grouped by key
-        if (event.key.code == sf::Keyboard::Key::LShift) {
-            if (event.type == sf::Event::KeyPressed) {
+        },
+        [&](const sf::Event::MouseButtonReleased& e) {
+            if (e.button == sf::Mouse::Button::Left) { // reset
+                switch (state) {
+                case EditorState::Idle: { // new connection started
+                    if (!conStartLegal) break;
+                    if (isCoordConType(conStartObjVar)) { // connectable
+                        state = EditorState::Connecting;
+                        // reset end... it will contain old data
+                        conEndPos    = conStartPos;
+                        conEndObjVar = conStartObjVar;
+                    } else if (typeOf(conStartObjVar) == ObjAtCoordType::ConCross) { // cross
+                        auto conPair = std::get<std::pair<Connection, Connection>>(conStartObjVar);
+                        block.insertOverlap(conPair.first, conPair.second, conStartPos);
+                    } else { // clickedObj was a gate or block
+                        // TODO
+                    }
+                    break;
+                }
+                case EditorState::Connecting: { // connection finished
+                    if (!conEndLegal) break;
+                    if (conEndPos == conStartPos) { // no move click is reset
+                        state = EditorState::Idle;
+                        break;
+                    }
+
+                    block.addConnection(conStartPos, conEndPos);
+                    // net refs invalidated in case of network combination
+                    resetToIdle();
+                    break;
+                }
+                case EditorState::Deleting: {
+                    if (!delLegal) break;
+                    if (typeOf(delObjVar) == ObjAtCoordType::Con) {
+                        block.eraseCon(std::get<Connection>(delObjVar));
+                        resetToIdle();
+                    } else {
+                        throw std::runtime_error(
+                            "ahhhh deleting for this type not implemented yet");
+                    }
+                }
+                }
+            }
+        },
+        [&](const sf::Event::KeyPressed& e) {
+            if (e.scancode == sf::Keyboard::Scancode::LShift) {
                 resetToIdle();
                 state = EditorState::Deleting;
-            } else { // on release reset
+            }
+        },
+        [&](const sf::Event::KeyReleased& e) {
+            if (e.scancode == sf::Keyboard::Scancode::LShift) {
                 resetToIdle();
             }
-        }
-    }
+        },
+        [&](auto&& e) {}}); // catchall
 }
 
 // Called every frame

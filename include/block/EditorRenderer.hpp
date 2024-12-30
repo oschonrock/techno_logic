@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SFML/Window/Mouse.hpp>
 #include <cmath>
 
 #include <SFML/Graphics/CircleShape.hpp>
@@ -96,7 +97,7 @@ class EditorRenderer {
   public:
     EditorRenderer(const Editor& editor_, sf::RenderWindow& window_, const sf::Font& font_)
         : font(font_), editor(editor_), block(editor.block), window(window_),
-          name(block.name, font) {
+          name(font, block.name) {
         // make grid
         updateGrid();
 
@@ -120,33 +121,35 @@ class EditorRenderer {
     bool event(const sf::Event& event, const sf::Vector2i& mousePixPos) {
         sf::Vector2f mousePos = window.mapPixelToCoords(mousePixPos);
         if (ImGui::GetIO().WantCaptureMouse) return false;
-        if (event.type == sf::Event::MouseWheelMoved) {
-            float        zoom = static_cast<float>(std::pow(zoomFact, -event.mouseWheel.delta));
+        if (const auto* e = event.getIf<sf::Event::MouseWheelScrolled>()) {
+            float        zoom = static_cast<float>(std::pow(zoomFact, -e->delta));
             sf::Vector2f diff = mousePos - view.getCenter();
             view.zoom(zoom);
             view.move(diff * (1 - zoom));
             window.setView(view);
             return true;
         }
-        if (event.type == sf::Event::MouseButtonPressed &&
-            event.mouseButton.button == sf::Mouse::Left) {
-            moveStatus       = MoveStatus::moveStarted;
-            mousePosOriginal = mousePixPos;
-            mousePosLast     = mousePos;
-            return true;
+        if (auto* e = event.getIf<sf::Event::MouseButtonPressed>()) {
+            if (e->button == sf::Mouse::Button::Left) {
+                moveStatus       = MoveStatus::moveStarted;
+                mousePosOriginal = mousePixPos;
+                mousePosLast     = mousePos;
+                return true;
+            }
         }
-        if (event.type == sf::Event::MouseButtonReleased &&
-            event.mouseButton.button == sf::Mouse::Left) {
-            bool captureEvent = moveStatus == MoveStatus::moveConfirmed;
-            moveStatus        = MoveStatus::idle;
-            return captureEvent;
+        if (auto* e = event.getIf<sf::Event::MouseButtonReleased>()) {
+            if (e->button == sf::Mouse::Button::Left) {
+                bool captureEvent = moveStatus == MoveStatus::moveConfirmed;
+                moveStatus        = MoveStatus::idle;
+                return captureEvent;
+            }
         }
-        if (event.type == sf::Event::Resized) {
+        if (auto* e = event.getIf<sf::Event::Resized>()) {
             sf::Vector2f scale(
-                static_cast<float>(event.size.width) / static_cast<float>(prevWindowSize.x),
-                static_cast<float>(event.size.height) / static_cast<float>(prevWindowSize.y));
+                static_cast<float>(e->size.x) / static_cast<float>(prevWindowSize.x),
+                static_cast<float>(e->size.y) / static_cast<float>(prevWindowSize.y));
             view.setSize({view.getSize().x * scale.x, view.getSize().y * scale.y});
-            prevWindowSize = {event.size.width, event.size.height};
+            prevWindowSize = {e->size.x, e->size.y};
             window.setView(view);
             return true;
         }
@@ -156,7 +159,7 @@ class EditorRenderer {
     // called every visual frame
     void frame(const sf::Vector2i& mousePixPos) {
         sf::Vector2f mousePos = window.mapPixelToCoords(mousePixPos);
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && moveStatus != MoveStatus::idle) {
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && moveStatus != MoveStatus::idle) {
             if (moveStatus == MoveStatus::moveConfirmed)
                 ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
             view.move(mousePosLast - mousePos); // moves grabbed point underneath cursor
