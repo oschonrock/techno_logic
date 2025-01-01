@@ -15,7 +15,7 @@ VERBOSE=
 for arg; do
   case "$arg" in
     --help|-h)    echo $USAGE; exit 0;;
-    -v|--verbose) VERBOSE='VERBOSE=1';;
+    -v|--verbose) VERBOSE='-v';;
     debug)        TYPE=Debug ;;
     release)      TYPE=Release ;;
     reldebug)     TYPE=RelWithDebInfo ;;
@@ -39,23 +39,6 @@ else
 fi
 
 [[ -n $RESET && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
-    
-GENERATOR="$($CMAKE --help | grep '^\*' | awk '{print $2}')"
-
-if [[ "$GENERATOR" == "Ninja" ]]
-then
-    GENERATOR_OPTIONS=""
-  if [[ $VERBOSE != "" ]]
-  then
-    GENERATOR_OPTIONS="$GENERATOR_OPTIONS -v"
-  fi
-else
-  GENERATOR_OPTIONS="-j8"
-  if [[ $VERBOSE != "" ]]
-  then
-    GENERATOR_OPTIONS="$GENERATOR_OPTIONS VERBOSE=1"
-  fi
-fi
 
 if command -v ccache > /dev/null 2>&1; then
     COMPILER_OPTIONS="$COMPILER_OPTIONS -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
@@ -63,11 +46,11 @@ else
     echo -e '\033[0;31m'"Consider installing \`ccache\` for extra speed!"'\033[0m' 1>&2
 fi
 
-$CMAKE -S . -B $BUILD_DIR $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE 
+$CMAKE -G Ninja -S . -B $BUILD_DIR $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE 
 
 [[ -n $CLEAN ]] && $CMAKE --build $BUILD_DIR --target clean
 
-$CMAKE --build $BUILD_DIR -- $GENERATOR_OPTIONS
+$CMAKE --build $BUILD_DIR -- $VERBOSE
 
 ## copy compile_commands.json for ease
 rm -f ./compile_commands.json && ln -s $BUILD_DIR/compile_commands.json .

@@ -1,0 +1,1 @@
+sudo apt install build-essential git cmake libfreetype-dev libx11-dev libxrandr-dev libudev-dev libflac-dev libogg-dev libvorbis-dev libxrandr-dev libxcursor-dev libxi-dev libgl-dev ninja-build
